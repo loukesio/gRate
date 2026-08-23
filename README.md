@@ -134,6 +134,10 @@ confidence intervals on `r` (and `K`) per well.
 
 <img src="man/figures/README-fit.png" width="700" alt="Observed growth curves with fitted logistic models overlaid"/>
 
+`gr_diauxie()` detects multi-phase (diauxic) growth automatically: separate
+peaks in the rolling per-capita rate profile, with per-phase rates, shift
+time, and honest `NA`s where nothing can be estimated.
+
 `gr_lag()` treats lag time with the honesty it needs: it computes four
 definitions per well (logistic/Gompertz/easylinear tangents, threshold
 crossing) and reports their agreement — disagreement is itself a diagnostic.

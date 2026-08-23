@@ -201,6 +201,20 @@ gr_plot_fit(plate, wells = c("A1", "B3", "C5", "E4"))
 gr_plot_plate(plate, "r")
 ```
 
+### Multi-phase growth (diauxie)
+
+`gr_diauxie()` scans every well for multiple growth phases — the diauxic
+shift when a culture switches carbon sources. Distinct phases appear as
+separate peaks in the rolling per-capita growth rate profile with a genuine
+trough between them; each phase gets its own rate and time.
+
+```{r diauxie}
+dx <- gr_diauxie(plate)
+table(dx$diauxic, useNA = "ifany")
+```
+
+(No diauxie in this example data — single logistic curves, as detected.)
+
 ### Lag time, honestly
 
 Lag is the most method-dependent growth parameter there is. `gr_lag()`
