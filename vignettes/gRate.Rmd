@@ -1,0 +1,205 @@
+---
+title: "gRate: from raw plate export to clean growth curves"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{gRate: from raw plate export to clean growth curves}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 4.5
+)
+```
+
+gRate is the preprocessing layer between your plate reader and growth
+model fitting. It reads raw 96-well growth curve exports, maps the plate
+layout, flags problematic wells, corrects spatial artifacts, and hands tidy
+data to packages like growthcurver or gcplyr. It deliberately does **not** fit
+growth models — those packages already do that well.
+
+The whole pipeline is five verbs on one object:
+
+```{r, eval = FALSE}
+gr_read("run1.csv") |>
+  gr_layout("layout.csv") |>
+  gr_qc() |>
+  gr_spatial() |>
+  gr_export(as = "growthcurver")
+```
+
+This vignette walks through each step using the example data bundled with the
+package: a synthetic 24-hour OD600 run with realistic problems baked in — two
+dead wells, three wells with single-read spikes, and a multiplicative edge
+effect.
+
+```{r setup}
+library(gRate)
+```
+
+## 1. Read
+
+`gr_read()` accepts the two generic layouts plate reader software exports:
+**wide** (a time column plus one column per well) and **long** (well / time /
+value columns). The layout is auto-detected; well names like `A01` are
+normalised to `A1`, and `HH:MM:SS` times are converted to hours.
+
+```{r read}
+raw <- system.file("extdata", "growth_wide.csv", package = "gRate")
+plate <- gr_read(raw)
+plate
+```
+
+Everything lives in a single `gr_plate` object: `$data` (tidy tibble),
+`$qc` (per-well flags, once QC has run), and `$meta`.
+
+```{r data}
+head(plate$data)
+```
+
+## 2. Layout
+
+`gr_layout()` joins your experimental design onto the wells. The recommended
+format is a long table with a `well` column plus any metadata columns; an
+8 × 12 grid mirroring the physical plate also works for one variable at a
+time.
+
+```{r layout}
+layout <- system.file("extdata", "layout_long.csv", package = "gRate")
+plate <- gr_layout(plate, layout)
+head(plate$data)
+```
+
+### Biological and technical replicates
+
+Two metadata columns are treated specially: `bio_rep` (independent cultures)
+and `tech_rep` (the same culture in several wells). Columns already named
+that way — as in the example layout — are picked up automatically; otherwise
+point the `bio_rep` / `tech_rep` arguments at your own column names:
+
+```{r layout-reps, eval = FALSE}
+gr_layout(plate, "layout.csv", bio_rep = "biol_replicate", tech_rep = "tech")
+```
+
+Once designated, the replicate structure shows up in the print summary and
+technical replicates can be averaged at export time (below).
+
+```{r print-reps}
+plate
+```
+
+## 3. Quality control
+
+`gr_qc()` flags wells that would corrupt downstream fits: `no_growth`,
+`spike`, `drift`, `late_jump`, and `noisy`. Every threshold is an argument
+with a sensible default. Flags never delete data — you decide later what to
+drop.
+
+```{r qc}
+plate <- gr_qc(plate)
+plate
+subset(plate$qc, flagged)
+```
+
+The two plotting functions make the QC results easy to eyeball. The plate
+heatmap shows any statistic or flag in its physical position:
+
+```{r plot-plate}
+gr_plot_plate(plate, "max_od")
+gr_plot_plate(plate, "flagged")
+```
+
+Notice the dimmer outer ring in the `max_od` map — that is the edge effect we
+will deal with next. The curve view highlights flagged wells in orange:
+
+```{r plot-curves, fig.height = 6}
+gr_plot_curves(plate)
+```
+
+Zoom in on the flagged wells to see why they were caught:
+
+```{r plot-flagged}
+gr_plot_curves(plate, wells = subset(plate$qc, flagged)$well)
+```
+
+## 4. Spatial correction (experimental)
+
+Edge wells often read lower — evaporation and temperature gradients are the
+usual suspects. `gr_spatial()` estimates row and column effects on a per-well
+summary statistic (max OD by default) using Tukey's median polish, then
+divides each curve by its estimated bias factor. Flagged wells are excluded
+from the estimation but still receive the correction.
+
+```{r spatial}
+plate <- gr_spatial(plate)
+round(plate$spatial$row_effects, 3)
+round(plate$spatial$col_effects, 3)
+```
+
+Rows A and H and columns 1 and 12 sit well below 1 — the edge effect — while
+the interior is essentially unbiased. After correction the plate map is flat:
+
+```{r spatial-after}
+gr_plot_plate(plate, "max_od")
+```
+
+Treat this step as a diagnostic aid: median polish captures row/column trends
+(corner wells are corrected twice over), and no correction rescues a design
+that confounds treatment with plate position. Randomise your layouts. The
+uncorrected values remain in `plate$data$value_raw`, and `correct = FALSE`
+estimates the effects without touching the data.
+
+## 5. Export
+
+`gr_export()` returns plain data frames in the shape downstream tools expect.
+`drop_flagged = TRUE` is the one place gRate removes data — explicitly,
+at your request.
+
+```{r export}
+tidy <- gr_export(plate)
+head(tidy)
+
+gc_input <- as_growthcurver(plate, drop_flagged = TRUE)
+gc_input[1:3, 1:5]
+```
+
+The wide `gc_input` goes straight into growthcurver:
+
+```{r growthcurver, eval = requireNamespace("growthcurver", quietly = TRUE)}
+fits <- growthcurver::SummarizeGrowthByPlate(gc_input)
+head(fits)
+```
+
+For gcplyr, `as_gcplyr()` produces the long `Well` / `Time` / `Measurements`
+shape (metadata columns included).
+
+```{r gcplyr}
+head(as_gcplyr(plate, drop_flagged = TRUE))
+```
+
+### Averaging technical replicates
+
+With `tech_rep` designated, `collapse_tech = TRUE` averages the wells of each
+technical replicate group at every timepoint. Combined with
+`drop_flagged = TRUE`, only clean wells enter the average; otherwise `flagged`
+tells you when any contributing well was suspect.
+
+```{r collapse}
+pooled <- gr_export(plate, collapse_tech = TRUE, drop_flagged = TRUE)
+head(pooled)
+```
+
+## One-call Quarto report
+
+`gr_report(plate)` renders the bundled Quarto (`.qmd`) template into a
+standalone, self-contained HTML report — plate maps, flagged wells with
+reasons, thresholds used, curves, and spatial effects — for keeping alongside
+the raw export. It needs the Quarto CLI (bundled with recent RStudio).
+
+```{r report, eval = FALSE}
+gr_report(plate, file = "run1_qc.html")
+```

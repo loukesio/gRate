@@ -1,2 +1,159 @@
-# gRate
-An R package for calculating r and K from growth curves
+# gRate <img src="man/figures/README-flagged.png" align="right" width="240" alt=""/>
+
+<!-- badges: start -->
+[![R-CMD-check](https://github.com/loukesio/gRate/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/loukesio/gRate/actions/workflows/R-CMD-check.yaml)
+[![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md)
+<!-- badges: end -->
+
+**Quality control and spatial bias correction for 96-well microbial growth
+curves.**
+
+gRate is the missing preprocessing layer between your plate reader and growth
+model fitting. It reads raw exports, maps plate layouts (including biological
+and technical replicates), flags problematic wells, corrects positional
+artifacts like edge effects, and outputs tidy data ready for
+[growthcurver](https://cran.r-project.org/package=growthcurver) or
+[gcplyr](https://cran.r-project.org/package=gcplyr). It does **not** fit
+growth models — those packages already do that well.
+
+## Why gRate?
+
+Everyone hand-rolls this plumbing: eyeballing 96 curves for condensation
+spikes, dead wells, and contamination — and pretending the outer ring doesn't
+read 15% low. gRate automates the boring, error-prone part with two firm
+principles:
+
+- **Flag, never delete.** Every QC decision is recorded per well with its
+  reason; *you* choose what to drop, and only at export.
+- **Every threshold is an argument.** Sensible defaults for OD600 curves,
+  nothing hard-coded.
+
+## Installation
+
+```r
+# install.packages("devtools")
+devtools::install_github("loukesio/gRate")
+```
+
+## The pipeline
+
+Five verbs on one object:
+
+```r
+library(gRate)
+
+gr_read("run1.csv") |>                 # wide or long export -> gr_plate
+  gr_layout("layout.csv") |>           # strain/medium + bio/tech replicates
+  gr_qc() |>                           # flag bad wells (never delete)
+  gr_spatial() |>                      # correct edge effects (experimental)
+  gr_export(as = "growthcurver")       # hand off to model fitting
+```
+
+Every function takes and returns a single `gr_plate` object (`$data`, `$qc`,
+`$meta`), so steps can be reordered, skipped, or inspected at any point:
+
+```
+<gr_plate> 96 wells x 49 timepoints
+  time: 0 to 24 (interval 0.5)
+  metadata: strain, medium, bio_rep, tech_rep
+  replicates: 4 biological x 2 technical
+  QC: 5 flagged wells (no_growth: 2, spike: 3)
+  spatial: corrected (stat: max_od)
+```
+
+## See your plate
+
+All plots are ggplot2 objects — restyle, retheme, or `ggsave()` them like any
+other. The plate map makes spatial trouble obvious at a glance (note the dim
+outer ring and the two dead wells):
+
+```r
+gr_plot_plate(plate, "max_od")
+```
+
+<img src="man/figures/README-platemap.png" width="700" alt="8x12 plate heatmap of maximum OD, showing a dimmer outer ring and two dead wells"/>
+
+And every curve in its physical position, flagged wells highlighted:
+
+```r
+gr_plot_curves(plate)
+```
+
+<img src="man/figures/README-curves.png" width="700" alt="Faceted growth curves in plate layout with flagged wells drawn in orange"/>
+
+## What gets flagged
+
+| Flag        | Catches                                        |
+|-------------|------------------------------------------------|
+| `no_growth` | empty or dead wells                            |
+| `spike`     | condensation, bubbles, single-read glitches    |
+| `drift`     | linear baseline drift with no sigmoid shape    |
+| `late_jump` | contamination-like sudden late rise            |
+| `noisy`     | erratic reads (robust loess residual spread)   |
+
+```r
+subset(plate$qc, flagged)
+#>   well  row   col  ... flagged reasons
+#>   B3    B     3        TRUE    spike
+#>   C5    C     5        TRUE    no_growth
+#>   ...
+```
+
+## Replicates
+
+`gr_layout()` understands **biological** (`bio_rep`) and **technical**
+(`tech_rep`) replicates — either name the columns that way in your layout, or
+designate any column:
+
+```r
+gr_layout(plate, "layout.csv", bio_rep = "culture", tech_rep = "tech_well")
+```
+
+Technical replicates can be averaged at export, optionally after dropping
+flagged wells so only clean curves enter the mean:
+
+```r
+gr_export(plate, collapse_tech = TRUE, drop_flagged = TRUE)
+```
+
+## Edge-effect correction
+
+`gr_spatial()` estimates row and column effects on max OD (or AUC) with
+Tukey's median polish and divides each curve by its bias factor. Flagged
+wells are excluded from the estimation but still corrected; raw values are
+kept in `value_raw`. It is deliberately simple and clearly labeled
+**experimental** — and no correction rescues a design that confounds
+treatment with plate position. Randomise your layouts.
+
+## Hand-off to model fitting
+
+```r
+as_growthcurver(plate, drop_flagged = TRUE)   # wide: time + one column per well
+as_gcplyr(plate)                              # long: Well / Time / Measurements
+gr_export(plate)                              # tidy tibble with QC + metadata
+```
+
+## One-call Quarto report
+
+```r
+gr_report(plate, file = "run1_qc.html")
+```
+
+renders a bundled Quarto (`.qmd`) template into a single self-contained HTML
+file — plate maps, flagged wells with reasons, the thresholds used, all
+curves, and spatial effects — for keeping alongside the raw export. Needs the
+[Quarto CLI](https://quarto.org) (bundled with recent RStudio).
+
+## Status & roadmap
+
+- Generic wide/long CSV/TSV/Excel parsers, QC flags, ggplot2 plate/curve
+  plots, replicate handling, median-polish spatial correction, exporters, and
+  the Quarto report: **done**, with `R CMD check` clean and a synthetic-plate
+  test suite that recovers every injected artifact.
+- Tecan and BioTek native parsers: **planned** — they will be written against
+  real example exports, not guessed formats. If you can share an export file,
+  please [open an issue](https://github.com/loukesio/gRate/issues).
+- 384-well support: out of scope for now (the design leaves room for it).
+
+See `vignette("gRate")` for the full walkthrough on the bundled example data.

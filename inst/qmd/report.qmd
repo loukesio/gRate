@@ -1,0 +1,114 @@
+---
+title: "`r params$title`"
+date: today
+format:
+  html:
+    embed-resources: true
+    toc: true
+    theme: flatly
+    fig-width: 9
+    fig-height: 5.5
+params:
+  plate_rds: "plate.rds"
+  title: "gRate report"
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r}
+#| label: setup
+library(gRate)
+plate <- readRDS(params$plate_rds)
+```
+
+## Plate overview
+
+```{r}
+print(plate)
+```
+
+```{r}
+#| label: plate-map
+gr_plot_plate(plate, "max_od")
+```
+
+## Quality control
+
+```{r}
+#| label: qc-summary
+#| results: asis
+if (is.null(plate$qc)) {
+  cat("QC has not been run on this plate (`gr_qc()`).\n")
+} else {
+  flagged <- subset(plate$qc, flagged)
+  if (nrow(flagged) == 0) {
+    cat("All wells pass QC.\n")
+  } else {
+    knitr::kable(
+      flagged[c("well", "reasons")],
+      caption = sprintf("%d flagged well(s)", nrow(flagged)),
+      row.names = FALSE
+    )
+  }
+}
+```
+
+```{r}
+#| label: qc-map
+#| eval: !expr "!is.null(plate$qc)"
+gr_plot_plate(plate, "flagged")
+```
+
+```{r}
+#| label: qc-thresholds
+#| results: asis
+if (!is.null(plate$qc)) {
+  th <- attr(plate$qc, "thresholds")
+  th$checks <- paste(th$checks, collapse = ", ")
+  cat("Thresholds used:\n\n")
+  knitr::kable(
+    data.frame(parameter = names(th), value = unlist(lapply(th, format))),
+    row.names = FALSE
+  )
+}
+```
+
+## Growth curves
+
+Flagged wells are highlighted in orange.
+
+```{r}
+#| label: curves
+#| fig-height: 7
+gr_plot_curves(plate)
+```
+
+## Spatial correction
+
+```{r}
+#| label: spatial
+#| results: asis
+if (is.null(plate$spatial)) {
+  cat("Spatial effects were not estimated (`gr_spatial()`).\n")
+} else {
+  sp <- plate$spatial
+  cat(sprintf(
+    "Row/column effects estimated on **%s** by median polish; curves %s.\n\n",
+    sp$stat,
+    if (isTRUE(sp$corrected)) "were corrected multiplicatively"
+    else "were **not** corrected"
+  ))
+  print(knitr::kable(
+    data.frame(row = names(sp$row_effects),
+               effect = round(sp$row_effects, 3)),
+    caption = "Row effects (1 = no bias)", row.names = FALSE
+  ))
+  print(knitr::kable(
+    data.frame(col = names(sp$col_effects),
+               effect = round(sp$col_effects, 3)),
+    caption = "Column effects (1 = no bias)", row.names = FALSE
+  ))
+}
+```

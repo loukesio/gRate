@@ -1,0 +1,41 @@
+Package: gRate
+Title: Growth Rate Data Preparation, Quality Control and Spatial Bias Correction
+Version: 0.1.0
+Authors@R:
+    person("Loukas", "Theodosiou", email = "loukesio@gmail.com",
+           role = c("aut", "cre"))
+Description: A preprocessing layer for 96-well plate reader growth curve
+    experiments. Reads raw plate reader exports, maps plate layouts to well
+    metadata, flags problematic wells (no growth, spikes, drift, late jumps,
+    noise), estimates and corrects spatial artifacts such as edge effects via
+    median polish, and exports tidy data ready for downstream growth model
+    fitting with packages such as 'growthcurver' or 'gcplyr'. gRate does
+    not fit growth models itself; it prepares clean, well-annotated data so
+    those packages can.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+Depends:
+    R (>= 4.1)
+Imports:
+    dplyr,
+    ggplot2,
+    rlang,
+    stats,
+    tibble,
+    tidyr,
+    utils
+Suggests:
+    gcplyr,
+    growthcurver,
+    knitr,
+    readxl,
+    quarto,
+    rmarkdown,
+    testthat (>= 3.0.0),
+    withr
+Config/testthat/edition: 3
+VignetteBuilder: knitr
+URL: https://github.com/loukesio/gRate
+BugReports: https://github.com/loukesio/gRate/issues
