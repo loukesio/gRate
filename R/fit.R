@@ -10,6 +10,15 @@
 #'   growth `t_rmax` (the inflection point), the lag time (tangent at the
 #'   inflection extrapolated to the baseline), and the doubling time
 #'   `ln(2)/r`.
+#' * `"gompertz"` — a parametric fit of the Gompertz model via
+#'   [stats::SSgompertz()]. Growth curves with a long deceleration phase are
+#'   often Gompertz-shaped rather than logistic. Here `r` is the Gompertz
+#'   rate constant *k* — a different scale from the logistic `r`, so compare
+#'   strains within one method, and compare models with `"compare"`.
+#' * `"compare"` — fits **both** logistic and Gompertz to every well and
+#'   keeps the model with the lower AIC. `$fit` gains `model` (the winner),
+#'   `aic_logistic`, `aic_gompertz`, and `delta_aic` (the winner's margin;
+#'   small values mean the data cannot really tell the models apart).
 #' * `"easylinear"` — a nonparametric estimate after Hall et al. (2014):
 #'   rolling linear regressions of `log(value - baseline)` over `window`
 #'   consecutive points, keeping only windows whose R-squared exceeds
@@ -34,7 +43,8 @@
 #'
 #' @param plate A `gr_plate` object, ideally after [gr_qc()] (and optionally
 #'   [gr_spatial()]).
-#' @param method `"logistic"` or `"easylinear"` (see Details).
+#' @param method `"logistic"`, `"gompertz"`, `"compare"`, or `"easylinear"`
+#'   (see Details).
 #' @param n_baseline Number of initial readings averaged as the baseline that
 #'   is subtracted before fitting. Default `3`.
 #' @param min_od For `method = "easylinear"`: baseline-subtracted values must
@@ -75,7 +85,7 @@
 #' head(plate$fit)
 #' gr_plot_plate(plate, "r")
 gr_fit <- function(plate,
-                   method = c("logistic", "easylinear"),
+                   method = c("logistic", "gompertz", "compare", "easylinear"),
                    n_baseline = 3,
                    min_od = 0.05,
                    window = 5,
@@ -89,6 +99,12 @@ gr_fit <- function(plate,
     method,
     logistic = function(time, value) {
       gr_fit_logistic(time, value, n_baseline, boot, conf_level)
+    },
+    gompertz = function(time, value) {
+      gr_fit_gompertz(time, value, n_baseline, boot, conf_level)
+    },
+    compare = function(time, value) {
+      gr_fit_compare(time, value, n_baseline, boot, conf_level)
     },
     easylinear = function(time, value) {
       gr_fit_easylinear(time, value, n_baseline, min_od, window, min_r2,
@@ -130,6 +146,7 @@ gr_fit <- function(plate,
 gr_fit_failure <- function(note) {
   list(
     params = list(
+      model = NA_character_,
       r = NA_real_, K = NA_real_, N0 = NA_real_, lag = NA_real_,
       t_rmax = NA_real_, doubling_time = NA_real_, sigma = NA_real_,
       r_lo = NA_real_, r_hi = NA_real_, K_lo = NA_real_, K_hi = NA_real_,
@@ -208,6 +225,7 @@ gr_fit_logistic <- function(time, value, n_baseline, boot = 0,
 
   list(
     params = c(list(
+      model = "logistic",
       r = r,
       K = K,
       N0 = K / (1 + exp(xmid / scal)),
@@ -221,8 +239,129 @@ gr_fit_logistic <- function(time, value, n_baseline, boot = 0,
       fit_ok = TRUE,
       note = ""
     )),
-    fitted = stats::fitted(fit) + baseline
+    fitted = stats::fitted(fit) + baseline,
+    aic = stats::AIC(fit)
   )
+}
+
+# Internal: Gompertz fit for one well. N(t) = K * exp(-exp(-k (t - t_mid)));
+# SSgompertz parameterises this as Asym * exp(-b2 * b3^t) with k = -log(b3)
+# and t_mid = log(b2) / k.
+gr_fit_gompertz <- function(time, value, n_baseline, boot = 0,
+                            conf_level = 0.95) {
+  baseline <- mean(utils::head(value, n_baseline))
+  n <- value - baseline
+
+  fit <- tryCatch(
+    suppressWarnings(
+      stats::nls(n ~ stats::SSgompertz(time, Asym, b2, b3),
+                 data = data.frame(time = time, n = n))
+    ),
+    error = function(e) conditionMessage(e)
+  )
+  if (is.character(fit)) {
+    out <- gr_fit_failure(paste("nls:", fit))
+    out$fitted <- rep(NA_real_, length(time))
+    return(out)
+  }
+
+  cf <- stats::coef(fit)
+  K <- unname(cf[["Asym"]])
+  b2 <- unname(cf[["b2"]])
+  b3 <- unname(cf[["b3"]])
+
+  if (K <= 0 || b2 <= 0 || b3 <= 0 || b3 >= 1) {
+    out <- gr_fit_failure("nls converged to a non-growing solution")
+    out$fitted <- rep(NA_real_, length(time))
+    return(out)
+  }
+
+  k <- -log(b3)
+  t_mid <- log(b2) / k
+
+  ci <- list(r_lo = NA_real_, r_hi = NA_real_,
+             K_lo = NA_real_, K_hi = NA_real_)
+  if (boot > 0) {
+    hat <- stats::fitted(fit)
+    resid <- stats::residuals(fit)
+    reps <- vapply(seq_len(boot), function(i) {
+      n_star <- hat + sample(resid, replace = TRUE)
+      re <- tryCatch(
+        suppressWarnings(stats::nls(
+          n_star ~ Asym * exp(-b2 * b3^time),
+          data = data.frame(time = time, n_star = n_star),
+          start = list(Asym = K, b2 = b2, b3 = b3)
+        )),
+        error = function(e) NULL
+      )
+      if (is.null(re)) c(NA_real_, NA_real_) else {
+        cfe <- stats::coef(re)
+        c(-log(cfe[["b3"]]), cfe[["Asym"]])
+      }
+    }, numeric(2))
+    r_ci <- gr_boot_ci(reps[1, ], boot, conf_level)
+    k_ci <- gr_boot_ci(reps[2, ], boot, conf_level)
+    ci <- list(r_lo = r_ci[1], r_hi = r_ci[2],
+               K_lo = k_ci[1], K_hi = k_ci[2])
+  }
+
+  list(
+    params = c(list(
+      model = "gompertz",
+      r = k,
+      K = K,
+      N0 = K * exp(-b2),
+      # Tangent at the inflection (slope kK/e through K/e) meets the baseline
+      # at t_mid - 1/k.
+      lag = t_mid - 1 / k,
+      t_rmax = t_mid,
+      doubling_time = log(2) / k,
+      sigma = stats::sigma(fit)
+    ), ci, list(
+      fit_ok = TRUE,
+      note = ""
+    )),
+    fitted = stats::fitted(fit) + baseline,
+    aic = stats::AIC(fit)
+  )
+}
+
+# Internal: fit logistic and Gompertz, keep the lower-AIC model.
+gr_fit_compare <- function(time, value, n_baseline, boot = 0,
+                           conf_level = 0.95) {
+  # Fit both without bootstrap first; bootstrap only the winner.
+  lo <- gr_fit_logistic(time, value, n_baseline)
+  go <- gr_fit_gompertz(time, value, n_baseline)
+
+  aic_lo <- if (isTRUE(lo$params$fit_ok)) lo$aic else NA_real_
+  aic_go <- if (isTRUE(go$params$fit_ok)) go$aic else NA_real_
+
+  if (is.na(aic_lo) && is.na(aic_go)) {
+    out <- gr_fit_failure("neither logistic nor Gompertz converged")
+    out$params$aic_logistic <- NA_real_
+    out$params$aic_gompertz <- NA_real_
+    out$params$delta_aic <- NA_real_
+    out$fitted <- rep(NA_real_, length(time))
+    return(out)
+  }
+
+  winner_is_logistic <- isTRUE(aic_lo <= aic_go) || is.na(aic_go)
+  out <- if (winner_is_logistic) {
+    if (boot > 0) gr_fit_logistic(time, value, n_baseline, boot, conf_level)
+    else lo
+  } else {
+    if (boot > 0) gr_fit_gompertz(time, value, n_baseline, boot, conf_level)
+    else go
+  }
+
+  out$params$aic_logistic <- aic_lo
+  out$params$aic_gompertz <- aic_go
+  out$params$delta_aic <- if (is.na(aic_lo) || is.na(aic_go)) {
+    NA_real_
+  } else {
+    abs(aic_lo - aic_go)
+  }
+  out
 }
 
 # Internal: rolling-regression mu-max estimate for one well (Hall et al. 2014).
@@ -293,6 +432,7 @@ gr_fit_easylinear <- function(time, value, n_baseline, min_od, window, min_r2,
 
   list(
     params = c(list(
+      model = "easylinear",
       r = r,
       K = max(stats::runmed(n[keep], 3)),
       N0 = exp(log_n0),

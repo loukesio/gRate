@@ -181,3 +181,67 @@ test_that("bootstrap CIs cover the true growth rate", {
   expect_true(all(is.na(plain$fit$r_lo)))
   expect_false("r_lo" %in% names(gr_results(plain)))
 })
+
+test_that("gompertz fits and compare picks the true model by AIC", {
+  set.seed(3)
+  times <- seq(0, 30, by = 0.5)
+  # Wells A1-A6: logistic curves; B1-B6: Gompertz curves. Same K, baseline.
+  mk <- function(w, shape) {
+    K <- 1.2
+    core <- if (shape == "logistic") {
+      K / (1 + exp(-0.6 * (times - 12)))
+    } else {
+      K * exp(-exp(-0.35 * (times - 10)))
+    }
+    data.frame(well = w, time = times,
+               value = 0.05 + core + rnorm(length(times), 0, 0.004))
+  }
+  df <- rbind(
+    do.call(rbind, lapply(paste0("A", 1:6), mk, shape = "logistic")),
+    do.call(rbind, lapply(paste0("B", 1:6), mk, shape = "gompertz"))
+  )
+  plate <- gr_read(df, format = "long")
+
+  # Pure Gompertz method recovers k and K on Gompertz data.
+  gomp <- gr_fit(plate, method = "gompertz")$fit
+  b_rows <- gomp[gomp$row == "B", ]
+  expect_true(all(b_rows$fit_ok))
+  expect_lt(abs(median(b_rows$r) - 0.35), 0.03)
+  expect_lt(abs(median(b_rows$K) - 1.2), 0.06)
+  expect_true(all(gomp$model[gomp$fit_ok] == "gompertz"))
+
+  # AIC comparison assigns each well its generating model.
+  cmp <- gr_fit(plate, method = "compare")
+  fit <- cmp$fit
+  expect_true(all(fit$fit_ok))
+  expect_true(all(fit$model[fit$row == "A"] == "logistic"))
+  expect_true(all(fit$model[fit$row == "B"] == "gompertz"))
+  expect_true(all(c("aic_logistic", "aic_gompertz", "delta_aic") %in% names(fit)))
+  expect_true(all(fit$delta_aic > 0))
+  expect_identical(cmp$meta$fit_method, "compare")
+  expect_output(print(cmp), "AIC compare \\(gompertz: 6, logistic: 6")
+
+  # Fitted overlay comes from the winning model.
+  expect_false(anyNA(cmp$data$fitted))
+})
+
+test_that("compare survives wells where one or both models fail", {
+  plate <- gr_fit(gr_qc(synthetic_plate()), method = "compare")
+  truth <- attr(plate, "truth")
+  dead <- plate$fit[plate$fit$well %in% truth$dead_wells, ]
+  expect_false(any(dead$fit_ok))
+  expect_match(dead$note[1], "neither|nls")
+  expect_true(all(plate$fit$fit_ok[!plate$fit$well %in% truth$dead_wells]))
+})
+
+test_that("compare mode supports bootstrap CIs on the winner", {
+  set.seed(5)
+  times <- seq(0, 30, by = 0.5)
+  df <- data.frame(well = "A1", time = times,
+                   value = 0.05 + 1.2 / (1 + exp(-0.6 * (times - 12))) +
+                     rnorm(length(times), 0, 0.003))
+  fit <- gr_fit(gr_read(df, format = "long"), method = "compare",
+                boot = 50)$fit
+  expect_identical(fit$model, "logistic")
+  expect_true(fit$r_lo < fit$r & fit$r < fit$r_hi)
+})

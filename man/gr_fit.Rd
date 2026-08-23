@@ -6,7 +6,7 @@
 \usage{
 gr_fit(
   plate,
-  method = c("logistic", "easylinear"),
+  method = c("logistic", "gompertz", "compare", "easylinear"),
   n_baseline = 3,
   min_od = 0.05,
   window = 5,
@@ -19,7 +19,8 @@ gr_fit(
 \item{plate}{A \code{gr_plate} object, ideally after \code{\link[=gr_qc]{gr_qc()}} (and optionally
 \code{\link[=gr_spatial]{gr_spatial()}}).}
 
-\item{method}{\code{"logistic"} or \code{"easylinear"} (see Details).}
+\item{method}{\code{"logistic"}, \code{"gompertz"}, \code{"compare"}, or \code{"easylinear"}
+(see Details).}
 
 \item{n_baseline}{Number of initial readings averaged as the baseline that
 is subtracted before fitting. Default \code{3}.}
@@ -66,6 +67,15 @@ intrinsic growth rate \code{r}, the initial density \code{N0}, the time of maxim
 growth \code{t_rmax} (the inflection point), the lag time (tangent at the
 inflection extrapolated to the baseline), and the doubling time
 \code{ln(2)/r}.
+\item \code{"gompertz"} — a parametric fit of the Gompertz model via
+\code{\link[stats:SSgompertz]{stats::SSgompertz()}}. Growth curves with a long deceleration phase are
+often Gompertz-shaped rather than logistic. Here \code{r} is the Gompertz
+rate constant \emph{k} — a different scale from the logistic \code{r}, so compare
+strains within one method, and compare models with \code{"compare"}.
+\item \code{"compare"} — fits \strong{both} logistic and Gompertz to every well and
+keeps the model with the lower AIC. \verb{$fit} gains \code{model} (the winner),
+\code{aic_logistic}, \code{aic_gompertz}, and \code{delta_aic} (the winner's margin;
+small values mean the data cannot really tell the models apart).
 \item \code{"easylinear"} — a nonparametric estimate after Hall et al. (2014):
 rolling linear regressions of \code{log(value - baseline)} over \code{window}
 consecutive points, keeping only windows whose R-squared exceeds

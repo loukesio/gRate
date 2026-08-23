@@ -163,6 +163,13 @@ spatially corrected values:
 * `method = "logistic"` (default) — parametric `nls` fit of the logistic
   model: growth rate `r`, carrying capacity `K`, initial density `N0`,
   tangent lag time, doubling time.
+* `method = "gompertz"` — parametric Gompertz fit, for curves with a long
+  deceleration phase. Its rate constant lives on a different scale from the
+  logistic `r`, so compare strains within one method.
+* `method = "compare"` — fits logistic **and** Gompertz to every well and
+  keeps the lower-AIC model, reporting the winner (`model`), both AICs, and
+  the margin (`delta_aic`). Honest model selection: a small `delta_aic`
+  means the data cannot really tell the models apart.
 * `method = "easylinear"` — nonparametric, after Hall et al. (2014): rolling
   regressions on log OD; the steepest window passing an R² filter gives the
   maximum per-capita growth rate. Use it when curves are not logistic.

@@ -122,12 +122,15 @@ gr_export(plate, collapse_tech = TRUE, drop_flagged = TRUE)
 ## Estimate growth rates
 
 `gr_fit()` fits every well — QC-aware, on spatially corrected values — with
-your choice of engine: a parametric logistic model (`nls`) returning growth
-rate `r`, carrying capacity `K`, lag and doubling time, or the nonparametric
-**easylinear** method (Hall et al. 2014): rolling regressions on log OD whose
-steepest R²-filtered window gives the maximum per-capita growth rate. Wells
-that cannot be fitted get `fit_ok = FALSE` and a note, never an error. Add
-`boot = 200` for bootstrap confidence intervals on `r` (and `K`) per well.
+your choice of engine: parametric **logistic** or **Gompertz** models (`nls`)
+returning growth rate `r`, carrying capacity `K`, lag and doubling time; the
+nonparametric **easylinear** method (Hall et al. 2014) — rolling regressions
+on log OD whose steepest R²-filtered window gives the maximum per-capita
+growth rate; or `method = "compare"`, which fits logistic and Gompertz to
+every well and keeps the lower-AIC model with its margin (`delta_aic`) —
+honest model selection in a tidy output. Wells that cannot be fitted get
+`fit_ok = FALSE` and a note, never an error. Add `boot = 200` for bootstrap
+confidence intervals on `r` (and `K`) per well.
 
 <img src="man/figures/README-fit.png" width="700" alt="Observed growth curves with fitted logistic models overlaid"/>
 

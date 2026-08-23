@@ -162,11 +162,22 @@ print.gr_plate <- function(x, ...) {
 
   if (!is.null(x$fit)) {
     ok <- x$fit$fit_ok
-    cat(sprintf(
-      "  fit: %s (%d/%d wells), median r = %.3g\n",
-      x$meta$fit_method %||% "?", sum(ok), length(ok),
-      stats::median(x$fit$r[ok])
-    ))
+    if (identical(x$meta$fit_method, "compare")) {
+      # r mixes the logistic and Gompertz scales here, so report the model
+      # split instead of a median.
+      counts <- table(x$fit$model[ok])
+      cat(sprintf(
+        "  fit: AIC compare (%s; %d/%d wells)\n",
+        paste(names(counts), counts, sep = ": ", collapse = ", "),
+        sum(ok), length(ok)
+      ))
+    } else {
+      cat(sprintf(
+        "  fit: %s (%d/%d wells), median r = %.3g\n",
+        x$meta$fit_method %||% "?", sum(ok), length(ok),
+        stats::median(x$fit$r[ok])
+      ))
+    }
   }
 
   invisible(x)
