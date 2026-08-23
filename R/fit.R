@@ -620,3 +620,95 @@ gr_results <- function(plate,
   }
   out
 }
+
+#' Lag time by several methods, with agreement
+#'
+#' Lag time is notoriously method-dependent: tangent constructions, model
+#' fits, and threshold crossings can disagree by hours on the same well.
+#' Rather than pretending one definition is "the" lag, `gr_lag()` computes it
+#' several ways per well and reports how much the methods agree — large
+#' disagreement usually means the curve shape violates one method's
+#' assumptions, and is worth a look with [gr_plot_curves()].
+#'
+#' Methods:
+#'
+#' * `logistic` — tangent at the inflection of a logistic fit, extrapolated
+#'   to the baseline (as in [gr_fit()]).
+#' * `gompertz` — the same tangent construction on a Gompertz fit.
+#' * `easylinear` — the fitted exponential of the steepest log-linear window
+#'   extrapolated down to the initial log-density (Hall et al. 2014).
+#' * `threshold` — the first time the (lightly smoothed) curve rises more
+#'   than `threshold` above baseline. Model-free and simple; by construction
+#'   it reads later than tangent methods on shallow curves and earlier on
+#'   steep ones.
+#'
+#' Methods that fail on a well (e.g. anything model-based on a dead well)
+#' contribute `NA` and are excluded from the agreement statistics.
+#'
+#' @param plate A `gr_plate` object.
+#' @inheritParams gr_fit
+#' @param methods Which lag definitions to compute. Default: all four.
+#' @param threshold Rise above baseline (in OD units) defining the
+#'   `threshold` lag. Default `0.05`.
+#' @param max_sd Maximum standard deviation across methods (in time units)
+#'   for a well to count as `agree = TRUE`. Default `1.5`.
+#'
+#' @return A tibble with one row per well: `lag_<method>` columns, `lag_mean`,
+#'   `lag_sd`, `lag_range` (max minus min), `n_methods` (how many succeeded),
+#'   and `agree` (`NA` when fewer than two methods succeeded).
+#' @export
+#' @seealso [gr_fit()] for the tangent definitions.
+#' @examples
+#' plate <- gr_read(system.file("extdata", "growth_long.csv", package = "gRate"))
+#' lags <- gr_lag(plate)
+#' head(lags)
+#' subset(lags, !agree)  # wells where the definitions disagree
+gr_lag <- function(plate,
+                   methods = c("logistic", "gompertz", "easylinear", "threshold"),
+                   n_baseline = 3,
+                   min_od = 0.05,
+                   window = 5,
+                   min_r2 = 0.97,
+                   threshold = 0.05,
+                   max_sd = 1.5) {
+  gr_assert_plate(plate)
+  methods <- match.arg(methods, several.ok = TRUE)
+
+  one_lag <- function(time, value, method) {
+    res <- switch(
+      method,
+      logistic = gr_fit_logistic(time, value, n_baseline)$params$lag,
+      gompertz = gr_fit_gompertz(time, value, n_baseline)$params$lag,
+      easylinear = gr_fit_easylinear(time, value, n_baseline, min_od,
+                                     window, min_r2)$params$lag,
+      threshold = {
+        baseline <- mean(utils::head(value, n_baseline))
+        smoothed <- stats::runmed(value, 3)
+        hit <- which(smoothed > baseline + threshold)
+        if (length(hit) == 0) NA_real_ else time[hit[1]]
+      }
+    )
+    if (is.null(res)) NA_real_ else res
+  }
+
+  data <- dplyr::arrange(plate$data, .data$well, .data$time)
+  rows <- lapply(split(seq_len(nrow(data)), data$well), function(idx) {
+    time <- data$time[idx]
+    value <- data$value[idx]
+    lags <- vapply(methods, function(m) one_lag(time, value, m), numeric(1))
+    ok <- lags[!is.na(lags)]
+    out <- as.list(stats::setNames(lags, paste0("lag_", methods)))
+    out$lag_mean <- if (length(ok) > 0) mean(ok) else NA_real_
+    out$lag_sd <- if (length(ok) > 1) stats::sd(ok) else NA_real_
+    out$lag_range <- if (length(ok) > 1) max(ok) - min(ok) else NA_real_
+    out$n_methods <- length(ok)
+    out$agree <- if (length(ok) > 1) out$lag_sd <= max_sd else NA
+    tibble::as_tibble(out)
+  })
+
+  well_pos <- dplyr::distinct(plate$data, .data$well, .data$row, .data$col)
+  dplyr::bind_rows(rows, .id = "well") |>
+    dplyr::left_join(well_pos, by = "well") |>
+    dplyr::select("well", "row", "col", dplyr::everything()) |>
+    dplyr::arrange(.data$row, .data$col)
+}

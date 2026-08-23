@@ -134,6 +134,10 @@ confidence intervals on `r` (and `K`) per well.
 
 <img src="man/figures/README-fit.png" width="700" alt="Observed growth curves with fitted logistic models overlaid"/>
 
+`gr_lag()` treats lag time with the honesty it needs: it computes four
+definitions per well (logistic/Gompertz/easylinear tangents, threshold
+crossing) and reports their agreement — disagreement is itself a diagnostic.
+
 `gr_results()` gives you *the* table to carry into your analysis — one row
 per well with your metadata, the parameters you care about, and the QC
 verdict side by side (or straight to CSV with `file = "..."`):

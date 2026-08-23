@@ -245,3 +245,42 @@ test_that("compare mode supports bootstrap CIs on the winner", {
   expect_identical(fit$model, "logistic")
   expect_true(fit$r_lo < fit$r & fit$r < fit$r_hi)
 })
+
+test_that("gr_lag computes each definition and their agreement", {
+  lags <- gr_lag(gr_qc(clean_plate()))
+  expect_equal(nrow(lags), 96)
+  expect_true(all(c("lag_logistic", "lag_gompertz", "lag_easylinear",
+                    "lag_threshold", "lag_mean", "lag_sd", "lag_range",
+                    "n_methods", "agree") %in% names(lags)))
+
+  # Known values for r = 0.6, t_mid = 8, K ~ 1.2, baseline 0.05:
+  # logistic tangent lag = 8 - 2/0.6 = 4.67. The threshold crossing of
+  # +0.05 OD is at t ~ 2.8 in the noiseless model, but the estimated
+  # baseline (mean of the first 3 readings) already contains ~0.012 of
+  # growth, pushing the effective crossing to the ~3.5 sample.
+  expect_lt(abs(median(lags$lag_logistic) - 4.67), 0.3)
+  expect_lt(abs(median(lags$lag_threshold) - 3.5), 0.6)
+  # The definitions genuinely differ - that spread is the point.
+  expect_true(all(lags$lag_sd > 0))
+  expect_true(all(lags$n_methods == 4))
+})
+
+test_that("gr_lag handles dead wells and method subsets", {
+  plate <- synthetic_plate()
+  truth <- attr(plate, "truth")
+  lags <- gr_lag(plate)
+
+  dead <- lags[lags$well %in% truth$dead_wells, ]
+  expect_true(all(is.na(dead$lag_logistic)))
+  expect_true(all(is.na(dead$lag_threshold)))
+  expect_true(all(dead$n_methods == 0))
+  expect_true(all(is.na(dead$agree)))
+
+  two <- gr_lag(plate, methods = c("logistic", "threshold"))
+  expect_true(all(c("lag_logistic", "lag_threshold") %in% names(two)))
+  expect_false("lag_gompertz" %in% names(two))
+
+  # agreement threshold is tunable
+  strict <- gr_lag(clean_plate(), max_sd = 0.01)
+  expect_false(any(strict$agree))
+})

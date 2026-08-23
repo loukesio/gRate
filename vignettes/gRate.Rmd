@@ -201,6 +201,20 @@ gr_plot_fit(plate, wells = c("A1", "B3", "C5", "E4"))
 gr_plot_plate(plate, "r")
 ```
 
+### Lag time, honestly
+
+Lag is the most method-dependent growth parameter there is. `gr_lag()`
+computes it four ways per well — logistic tangent, Gompertz tangent,
+easylinear tangent, and a simple threshold crossing — and reports how much
+they agree. A well where the definitions disagree wildly usually has a curve
+shape that violates somebody's assumptions; look at it before quoting a lag.
+
+```{r lag}
+lags <- gr_lag(plate)
+head(lags[c("well", "lag_logistic", "lag_gompertz", "lag_easylinear",
+            "lag_threshold", "lag_sd", "agree")])
+```
+
 ### The results table
 
 `gr_results()` is the table to carry into your analysis: one row per well,
