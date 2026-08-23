@@ -95,12 +95,15 @@ gr_plot_curves(plate)
 | `noisy`     | erratic reads (robust loess residual spread)   |
 
 ```r
+gr_plot_plate(plate, "flagged")
 subset(plate$qc, flagged)
-#>   well  row   col  ... flagged reasons
-#>   B3    B     3        TRUE    spike
-#>   C5    C     5        TRUE    no_growth
+#>   well  reasons
+#>   B3    spike
+#>   C5    no_growth
 #>   ...
 ```
+
+<img src="man/figures/README-flagged.png" width="700" alt="8x12 plate heatmap with the five QC-flagged wells highlighted in orange"/>
 
 ## Replicates
 
@@ -138,9 +141,13 @@ confidence intervals on `r` (and `K`) per well.
 peaks in the rolling per-capita rate profile, with per-phase rates, shift
 time, and honest `NA`s where nothing can be estimated.
 
+<img src="man/figures/README-diauxie.png" width="700" alt="A diauxic growth curve above its rolling per-capita rate profile, with the two detected phase peaks and the trough between them marked"/>
+
 `gr_lag()` treats lag time with the honesty it needs: it computes four
 definitions per well (logistic/Gompertz/easylinear tangents, threshold
 crossing) and reports their agreement — disagreement is itself a diagnostic.
+
+<img src="man/figures/README-lag.png" width="700" alt="One growth curve with four vertical lines marking where each lag definition places the lag time"/>
 
 `gr_results()` gives you *the* table to carry into your analysis — one row
 per well with your metadata, the parameters you care about, and the QC
@@ -183,14 +190,21 @@ cmp
 gr_plot_compare(cmp)
 ```
 
+<img src="man/figures/README-compare.png" width="650" alt="Growth rate by strain: jittered biological replicate points with group mean and confidence interval crossbars, clearly separated between a fast and a slow strain"/>
+
 ## Edge-effect correction
 
 `gr_spatial()` estimates row and column effects on max OD (or AUC) with
 Tukey's median polish and divides each curve by its bias factor. Flagged
 wells are excluded from the estimation but still corrected; raw values are
-kept in `value_raw`. It is deliberately simple and clearly labeled
-**experimental** — and no correction rescues a design that confounds
-treatment with plate position. Randomise your layouts.
+kept in `value_raw`.
+
+<img src="man/figures/README-spatial.png" width="850" alt="Two plate heatmaps of maximum OD: before correction the outer ring reads visibly lower; after gr_spatial() the plate is flat apart from the over-corrected corners"/>
+
+It is deliberately simple and clearly labeled **experimental** — median
+polish captures row/column trends but corrects corner wells twice over (you
+can see it in the corners above) — and no correction rescues a design that
+confounds treatment with plate position. Randomise your layouts.
 
 ## Prefer another fitting engine?
 

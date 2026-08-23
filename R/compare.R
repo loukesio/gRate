@@ -237,7 +237,7 @@ gr_plot_compare <- function(cmp) {
       y = cmp$what,
       title = sprintf("%s by %s", cmp$what, paste(cmp$by, collapse = " / ")),
       subtitle = sprintf(
-        "points: %s; crossbar: mean and %g%% CI; %s p = %.3g",
+        "points: %s; crossbar: mean and %g%% CI\n%s: p = %.3g",
         cmp$unit, 100 * cmp$conf_level, cmp$overall$method,
         cmp$overall$p_value
       )
