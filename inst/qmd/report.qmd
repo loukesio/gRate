@@ -11,6 +11,7 @@ format:
 params:
   plate_rds: "plate.rds"
   title: "gRate report"
+  interactive: false
 execute:
   echo: false
   warning: false
@@ -21,6 +22,12 @@ execute:
 #| label: setup
 library(gRate)
 plate <- readRDS(params$plate_rds)
+# In interactive mode ggplots become zoomable, hoverable plotly widgets.
+show <- if (isTRUE(params$interactive)) {
+  function(p) plotly::ggplotly(p)
+} else {
+  function(p) p
+}
 ```
 
 ## Plate overview
@@ -31,7 +38,7 @@ print(plate)
 
 ```{r}
 #| label: plate-map
-gr_plot_plate(plate, "max_od")
+show(gr_plot_plate(plate, "max_od"))
 ```
 
 ## Quality control
@@ -58,7 +65,7 @@ if (is.null(plate$qc)) {
 ```{r}
 #| label: qc-map
 #| eval: !expr "!is.null(plate$qc)"
-gr_plot_plate(plate, "flagged")
+show(gr_plot_plate(plate, "flagged"))
 ```
 
 ```{r}
@@ -82,7 +89,7 @@ Flagged wells are highlighted in orange.
 ```{r}
 #| label: curves
 #| fig-height: 7
-gr_plot_curves(plate)
+show(gr_plot_curves(plate))
 ```
 
 ## Growth parameters
@@ -117,7 +124,28 @@ if (is.null(plate$fit)) {
 ```{r}
 #| label: fit-map
 #| eval: !expr "!is.null(plate$fit)"
-gr_plot_plate(plate, "r")
+show(gr_plot_plate(plate, "r"))
+```
+
+```{r}
+#| label: fit-table-heading
+#| eval: !expr "!is.null(plate$fit)"
+#| results: asis
+cat("### Per-well results\n")
+```
+
+```{r}
+#| label: fit-table
+#| eval: !expr "!is.null(plate$fit)"
+res <- gr_results(plate)
+num <- vapply(res, is.numeric, logical(1))
+res[num] <- lapply(res[num], signif, 3)
+if (isTRUE(params$interactive)) {
+  DT::datatable(res, rownames = FALSE, filter = "top",
+                options = list(pageLength = 12, scrollX = TRUE))
+} else {
+  knitr::kable(res, row.names = FALSE)
+}
 ```
 
 ```{r}

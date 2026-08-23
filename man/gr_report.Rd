@@ -4,7 +4,13 @@
 \alias{gr_report}
 \title{Render a one-page HTML QC report for a plate}
 \usage{
-gr_report(plate, file = "gRate_report.html", title = NULL, quiet = TRUE)
+gr_report(
+  plate,
+  file = "gRate_report.html",
+  title = NULL,
+  interactive = FALSE,
+  quiet = TRUE
+)
 }
 \arguments{
 \item{plate}{A \code{gr_plate} object, ideally after \code{\link[=gr_qc]{gr_qc()}} (and optionally
@@ -14,6 +20,11 @@ gr_report(plate, file = "gRate_report.html", title = NULL, quiet = TRUE)
 working directory.}
 
 \item{title}{Report title. Defaults to the plate id if present.}
+
+\item{interactive}{If \code{TRUE}, plots are rendered as zoomable, hoverable
+plotly widgets (hover a curve to see its well) and the results table
+becomes searchable and sortable. Requires the \code{plotly} and \code{DT}
+packages. Default \code{FALSE} (static figures).}
 
 \item{quiet}{Passed to \code{\link[quarto:quarto_render]{quarto::quarto_render()}}. Default \code{TRUE}.}
 }

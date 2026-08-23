@@ -29,9 +29,11 @@ Imports:
     tidyr,
     utils
 Suggests:
+    DT,
     gcplyr,
     growthcurver,
     knitr,
+    plotly,
     readxl,
     quarto,
     rmarkdown,

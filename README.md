@@ -210,7 +210,9 @@ renders a bundled Quarto (`.qmd`) template into a single self-contained HTML
 file — plate maps, flagged wells with reasons, the thresholds used, all
 curves, growth parameters, and spatial effects — for keeping alongside the
 raw export. Needs the
-[Quarto CLI](https://quarto.org) (bundled with recent RStudio).
+[Quarto CLI](https://quarto.org) (bundled with recent RStudio). Add
+`interactive = TRUE` for zoomable, hoverable plotly figures (hover a curve to
+see its well) and a searchable per-well results table.
 
 ## Status & roadmap
 

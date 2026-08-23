@@ -12,6 +12,10 @@
 #' @param file Output HTML file path. Default `"gRate_report.html"` in the
 #'   working directory.
 #' @param title Report title. Defaults to the plate id if present.
+#' @param interactive If `TRUE`, plots are rendered as zoomable, hoverable
+#'   plotly widgets (hover a curve to see its well) and the results table
+#'   becomes searchable and sortable. Requires the `plotly` and `DT`
+#'   packages. Default `FALSE` (static figures).
 #' @param quiet Passed to [quarto::quarto_render()]. Default `TRUE`.
 #'
 #' @return The path to the rendered HTML file, invisibly.
@@ -28,8 +32,21 @@
 gr_report <- function(plate,
                       file = "gRate_report.html",
                       title = NULL,
+                      interactive = FALSE,
                       quiet = TRUE) {
   gr_assert_plate(plate)
+
+  if (interactive) {
+    missing_pkgs <- c("plotly", "DT")[!vapply(
+      c("plotly", "DT"), requireNamespace, logical(1), quietly = TRUE
+    )]
+    if (length(missing_pkgs) > 0) {
+      stop("interactive = TRUE requires the ",
+           paste(missing_pkgs, collapse = " and "), " package(s). ",
+           "Install with install.packages(c(\"plotly\", \"DT\")).",
+           call. = FALSE)
+    }
+  }
 
   if (!requireNamespace("quarto", quietly = TRUE)) {
     stop("gr_report() requires the 'quarto' package. ",
@@ -69,7 +86,8 @@ gr_report <- function(plate,
   quarto::quarto_render(
     input = input,
     output_file = "report.html",
-    execute_params = list(plate_rds = "plate.rds", title = title),
+    execute_params = list(plate_rds = "plate.rds", title = title,
+                          interactive = interactive),
     quiet = quiet
   )
 

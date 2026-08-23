@@ -326,3 +326,11 @@ the raw export. It needs the Quarto CLI (bundled with recent RStudio).
 ```{r report, eval = FALSE}
 gr_report(plate, file = "run1_qc.html")
 ```
+
+With `interactive = TRUE` (requires the plotly and DT packages), the plots
+become zoomable and hoverable — hover a curve to see which well it is — and
+the per-well results table becomes searchable and sortable:
+
+```{r report-interactive, eval = FALSE}
+gr_report(plate, file = "run1_qc.html", interactive = TRUE)
+```
