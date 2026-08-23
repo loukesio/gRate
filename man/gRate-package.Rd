@@ -4,9 +4,9 @@
 \name{gRate-package}
 \alias{gRate}
 \alias{gRate-package}
-\title{gRate: Growth Rate Data Preparation, Quality Control and Spatial Bias Correction}
+\title{gRate: Growth Rates from Microbial Growth Curves, with Quality Control and Spatial Bias Correction}
 \description{
-A preprocessing layer for 96-well plate reader growth curve experiments. Reads raw plate reader exports, maps plate layouts to well metadata, flags problematic wells (no growth, spikes, drift, late jumps, noise), estimates and corrects spatial artifacts such as edge effects via median polish, and exports tidy data ready for downstream growth model fitting with packages such as 'growthcurver' or 'gcplyr'. gRate does not fit growth models itself; it prepares clean, well-annotated data so those packages can.
+An end-to-end toolkit for 96-well plate reader growth curve experiments. Reads raw plate reader exports, maps plate layouts to well metadata including biological and technical replicates, flags problematic wells (no growth, spikes, drift, late jumps, noise), estimates and corrects spatial artifacts such as edge effects via median polish, fits growth models per well (parametric logistic fits, or the nonparametric 'easylinear' method of Hall et al. (2014) \doi{10.1093/molbev/mst187}), and summarises growth parameters across replicates. Tidy exporters are provided for users who prefer fitting with 'growthcurver' or 'gcplyr'.
 }
 \seealso{
 Useful links:

@@ -7,6 +7,8 @@
 #'   `"baseline"`;
 #' * a QC result — `"flagged"` or any individual check name run by [gr_qc()]
 #'   (e.g. `"spike"`);
+#' * a growth parameter from [gr_fit()] — `"r"`, `"K"`, `"lag"`,
+#'   `"doubling_time"`, `"t_rmax"`, `"N0"`, `"sigma"`, or `"fit_ok"`;
 #' * any metadata column added by [gr_layout()].
 #'
 #' @param plate A `gr_plate` object.
@@ -28,15 +30,20 @@ gr_plot_plate <- function(plate, fill = "max_od", label = FALSE) {
   qc_cols <- if (is.null(plate$qc)) character(0) else {
     setdiff(names(plate$qc), c("well", "row", "col", "reasons"))
   }
+  fit_cols <- if (is.null(plate$fit)) character(0) else {
+    setdiff(names(plate$fit), c("well", "row", "col", "note"))
+  }
   meta_cols <- setdiff(
     names(plate$data),
-    c("well", "row", "col", "time", "value", "value_raw")
+    c("well", "row", "col", "time", "value", "value_raw", "fitted")
   )
 
   if (fill %in% summary_stats) {
     df <- gr_summarise(plate)
   } else if (fill %in% qc_cols) {
     df <- plate$qc
+  } else if (fill %in% fit_cols) {
+    df <- plate$fit
   } else if (fill %in% meta_cols) {
     df <- dplyr::distinct(
       plate$data, .data$well, .data$row, .data$col,
@@ -45,8 +52,9 @@ gr_plot_plate <- function(plate, fill = "max_od", label = FALSE) {
   } else {
     stop(
       "Cannot plot '", fill, "'. Available: ",
-      paste(c(summary_stats, qc_cols, meta_cols), collapse = ", "),
+      paste(c(summary_stats, qc_cols, fit_cols, meta_cols), collapse = ", "),
       if (is.null(plate$qc)) " (run gr_qc() for QC flags)" else "",
+      if (is.null(plate$fit)) " (run gr_fit() for growth parameters)" else "",
       call. = FALSE
     )
   }
@@ -171,6 +179,70 @@ gr_plot_curves <- function(plate, colour_by = NULL, wells = NULL, raw = FALSE) {
 
   p +
     ggplot2::labs(x = "time", y = "value") +
+    ggplot2::theme_minimal(base_size = 9) +
+    ggplot2::theme(
+      panel.grid.minor = ggplot2::element_blank(),
+      axis.text = ggplot2::element_text(size = 5)
+    )
+}
+
+#' Growth curves with fitted models overlaid
+#'
+#' Plots the observed readings as points and the curve fitted by [gr_fit()]
+#' as a line, one facet per well in plate position (or wrapped, for a
+#' subset). For `method = "logistic"` the line spans the whole run; for
+#' `method = "easylinear"` it is the fitted exponential drawn over the
+#' winning regression window. Wells whose fit failed show points only.
+#'
+#' @param plate A `gr_plate` object after [gr_fit()].
+#' @param wells Optional character vector of well ids to restrict the plot to;
+#'   facets then wrap instead of using the plate grid.
+#'
+#' @return A ggplot object.
+#' @export
+#' @examples
+#' plate <- gr_read(system.file("extdata", "growth_long.csv", package = "gRate"))
+#' plate <- gr_fit(gr_qc(plate))
+#' gr_plot_fit(plate, wells = c("A1", "B3", "C5"))
+gr_plot_fit <- function(plate, wells = NULL) {
+  gr_assert_plate(plate)
+  if (!"fitted" %in% names(plate$data)) {
+    stop("No fitted curves; run gr_fit() first.", call. = FALSE)
+  }
+
+  df <- plate$data
+  if (!is.null(wells)) {
+    wells <- gr_norm_well(wells)
+    df <- df[df$well %in% wells, ]
+    if (nrow(df) == 0) stop("None of the requested wells are in the plate.",
+                            call. = FALSE)
+  }
+  df$row <- factor(df$row, levels = LETTERS[1:8])
+
+  p <- ggplot2::ggplot(df, ggplot2::aes(x = .data$time, group = .data$well)) +
+    ggplot2::geom_point(ggplot2::aes(y = .data$value),
+                        size = 0.3, colour = "grey55") +
+    ggplot2::geom_line(
+      data = df[!is.na(df$fitted), ],
+      ggplot2::aes(y = .data$fitted),
+      colour = "#0072B2", linewidth = 0.5
+    )
+
+  if (is.null(wells)) {
+    p <- p + ggplot2::facet_grid(
+      rows = ggplot2::vars(.data$row),
+      cols = ggplot2::vars(.data$col)
+    )
+  } else {
+    p <- p + ggplot2::facet_wrap(ggplot2::vars(.data$well))
+  }
+
+  p +
+    ggplot2::labs(
+      x = "time", y = "value",
+      title = paste0("Fitted growth curves (",
+                     plate$meta$fit_method %||% "unknown method", ")")
+    ) +
     ggplot2::theme_minimal(base_size = 9) +
     ggplot2::theme(
       panel.grid.minor = ggplot2::element_blank(),

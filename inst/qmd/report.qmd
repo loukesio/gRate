@@ -85,6 +85,54 @@ Flagged wells are highlighted in orange.
 gr_plot_curves(plate)
 ```
 
+## Growth parameters
+
+```{r}
+#| label: fit-summary
+#| results: asis
+if (is.null(plate$fit)) {
+  cat("Growth models were not fitted (`gr_fit()`).\n")
+} else {
+  ok <- plate$fit[plate$fit$fit_ok, ]
+  cat(sprintf(
+    "Method: **%s**; %d/%d wells fitted successfully.\n\n",
+    plate$meta$fit_method, nrow(ok), nrow(plate$fit)
+  ))
+  knitr::kable(
+    data.frame(
+      parameter = c("r (growth rate)", "K (carrying capacity)",
+                    "lag time", "doubling time"),
+      median = signif(c(median(ok$r), median(ok$K),
+                        median(ok$lag), median(ok$doubling_time)), 3),
+      min = signif(c(min(ok$r), min(ok$K),
+                     min(ok$lag), min(ok$doubling_time)), 3),
+      max = signif(c(max(ok$r), max(ok$K),
+                     max(ok$lag), max(ok$doubling_time)), 3)
+    ),
+    row.names = FALSE
+  )
+}
+```
+
+```{r}
+#| label: fit-map
+#| eval: !expr "!is.null(plate$fit)"
+gr_plot_plate(plate, "r")
+```
+
+```{r}
+#| label: fit-failed
+#| results: asis
+if (!is.null(plate$fit) && any(!plate$fit$fit_ok)) {
+  failed <- plate$fit[!plate$fit$fit_ok, ]
+  knitr::kable(
+    failed[c("well", "note")],
+    caption = sprintf("%d well(s) could not be fitted", nrow(failed)),
+    row.names = FALSE
+  )
+}
+```
+
 ## Spatial correction
 
 ```{r}

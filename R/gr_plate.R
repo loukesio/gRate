@@ -111,7 +111,7 @@ print.gr_plate <- function(x, ...) {
 
   meta_cols <- setdiff(
     names(x$data),
-    c("well", "row", "col", "time", "value", "value_raw")
+    c("well", "row", "col", "time", "value", "value_raw", "fitted")
   )
   if (length(meta_cols) > 0) {
     cat("  metadata:", paste(meta_cols, collapse = ", "), "\n")
@@ -157,6 +157,15 @@ print.gr_plate <- function(x, ...) {
       "  spatial: %s (stat: %s)\n",
       if (isTRUE(x$spatial$corrected)) "corrected" else "estimated, not corrected",
       x$spatial$stat
+    ))
+  }
+
+  if (!is.null(x$fit)) {
+    ok <- x$fit$fit_ok
+    cat(sprintf(
+      "  fit: %s (%d/%d wells), median r = %.3g\n",
+      x$meta$fit_method %||% "?", sum(ok), length(ok),
+      stats::median(x$fit$r[ok])
     ))
   }
 

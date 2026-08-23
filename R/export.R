@@ -139,7 +139,7 @@ gr_collapse_tech <- function(df) {
   }
 
   drop_cols <- c("well", "row", "col", "tech_rep", "value", "value_raw",
-                 "flagged", "reasons")
+                 "fitted", "flagged", "reasons")
   group_cols <- c(setdiff(names(df), c(drop_cols, "time")), "time")
 
   has_qc <- "flagged" %in% names(df)

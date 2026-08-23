@@ -1,8 +1,8 @@
 ---
-title: "gRate: from raw plate export to clean growth curves"
+title: "gRate: from raw plate export to growth rates"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{gRate: from raw plate export to clean growth curves}
+  %\VignetteIndexEntry{gRate: from raw plate export to growth rates}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -16,20 +16,22 @@ knitr::opts_chunk$set(
 )
 ```
 
-gRate is the preprocessing layer between your plate reader and growth
-model fitting. It reads raw 96-well growth curve exports, maps the plate
-layout, flags problematic wells, corrects spatial artifacts, and hands tidy
-data to packages like growthcurver or gcplyr. It deliberately does **not** fit
-growth models — those packages already do that well.
+gRate takes you from a raw 96-well plate reader export to growth parameters
+you can trust. It reads the export, maps the plate layout, flags problematic
+wells, corrects spatial artifacts, fits growth models (parametric logistic or
+nonparametric "easylinear"), and summarises parameters across replicates.
+Prefer growthcurver or gcplyr for the fitting? `gr_export()` hands them
+clean, QC'd data instead.
 
-The whole pipeline is five verbs on one object:
+The whole pipeline is six verbs on one object:
 
 ```{r, eval = FALSE}
 gr_read("run1.csv") |>
   gr_layout("layout.csv") |>
   gr_qc() |>
   gr_spatial() |>
-  gr_export(as = "growthcurver")
+  gr_fit() |>
+  gr_fit_summary()
 ```
 
 This vignette walks through each step using the example data bundled with the
@@ -153,9 +155,51 @@ that confounds treatment with plate position. Randomise your layouts. The
 uncorrected values remain in `plate$data$value_raw`, and `correct = FALSE`
 estimates the effects without touching the data.
 
-## 5. Export
+## 5. Fit growth models
 
-`gr_export()` returns plain data frames in the shape downstream tools expect.
+`gr_fit()` estimates growth parameters per well, QC-aware and on the
+spatially corrected values:
+
+* `method = "logistic"` (default) — parametric `nls` fit of the logistic
+  model: growth rate `r`, carrying capacity `K`, initial density `N0`,
+  tangent lag time, doubling time.
+* `method = "easylinear"` — nonparametric, after Hall et al. (2014): rolling
+  regressions on log OD; the steepest window passing an R² filter gives the
+  maximum per-capita growth rate. Use it when curves are not logistic.
+
+Wells that cannot be fitted (the dead wells here) get `fit_ok = FALSE` and a
+`note` — never an error, and never silently dropped.
+
+```{r fit}
+plate <- gr_fit(plate)
+plate
+head(plate$fit)
+```
+
+Overlay the fits on the data to judge them by eye, and map any parameter back
+onto the plate:
+
+```{r fit-plots, fig.height = 6}
+gr_plot_fit(plate, wells = c("A1", "B3", "C5", "E4"))
+gr_plot_plate(plate, "r")
+```
+
+### Summarise across replicates
+
+`gr_fit_summary()` is the step most fitting tools leave to you: it averages
+parameters over technical and biological replicates *after* excluding flagged
+wells and failed fits. By default it groups by every metadata column except
+the replicate identifiers; pass `by` to group differently.
+
+```{r fit-summary}
+gr_fit_summary(plate)
+gr_fit_summary(plate, by = c("strain", "medium", "bio_rep"))
+```
+
+## 6. Export
+
+Prefer growthcurver or gcplyr as the fitting engine? `gr_export()` returns
+plain data frames in the shape those tools expect.
 `drop_flagged = TRUE` is the one place gRate removes data — explicitly,
 at your request.
 

@@ -27,6 +27,8 @@ plate) with each well coloured by:
 \code{"baseline"};
 \item a QC result — \code{"flagged"} or any individual check name run by \code{\link[=gr_qc]{gr_qc()}}
 (e.g. \code{"spike"});
+\item a growth parameter from \code{\link[=gr_fit]{gr_fit()}} — \code{"r"}, \code{"K"}, \code{"lag"},
+\code{"doubling_time"}, \code{"t_rmax"}, \code{"N0"}, \code{"sigma"}, or \code{"fit_ok"};
 \item any metadata column added by \code{\link[=gr_layout]{gr_layout()}}.
 }
 }

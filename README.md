@@ -6,16 +6,16 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md)
 <!-- badges: end -->
 
-**Quality control and spatial bias correction for 96-well microbial growth
-curves.**
+**From raw plate reader export to growth rates you can trust.**
 
-gRate is the missing preprocessing layer between your plate reader and growth
-model fitting. It reads raw exports, maps plate layouts (including biological
-and technical replicates), flags problematic wells, corrects positional
-artifacts like edge effects, and outputs tidy data ready for
+gRate handles the whole journey for 96-well microbial growth curves: it reads
+raw exports, maps plate layouts (including biological and technical
+replicates), flags problematic wells, corrects positional artifacts like edge
+effects, fits growth models (parametric logistic or nonparametric
+"easylinear"), and summarises the parameters across replicates. Prefer
 [growthcurver](https://cran.r-project.org/package=growthcurver) or
-[gcplyr](https://cran.r-project.org/package=gcplyr). It does **not** fit
-growth models — those packages already do that well.
+[gcplyr](https://cran.r-project.org/package=gcplyr) as the fitting engine?
+`gr_export()` hands them clean, QC'd data instead.
 
 ## Why gRate?
 
@@ -38,7 +38,7 @@ devtools::install_github("loukesio/gRate")
 
 ## The pipeline
 
-Five verbs on one object:
+Six verbs on one object:
 
 ```r
 library(gRate)
@@ -47,7 +47,8 @@ gr_read("run1.csv") |>                 # wide or long export -> gr_plate
   gr_layout("layout.csv") |>           # strain/medium + bio/tech replicates
   gr_qc() |>                           # flag bad wells (never delete)
   gr_spatial() |>                      # correct edge effects (experimental)
-  gr_export(as = "growthcurver")       # hand off to model fitting
+  gr_fit() |>                          # logistic or easylinear growth fits
+  gr_fit_summary()                     # r, K, lag +- SD across replicates
 ```
 
 Every function takes and returns a single `gr_plate` object (`$data`, `$qc`,
@@ -60,6 +61,7 @@ Every function takes and returns a single `gr_plate` object (`$data`, `$qc`,
   replicates: 4 biological x 2 technical
   QC: 5 flagged wells (no_growth: 2, spike: 3)
   spatial: corrected (stat: max_od)
+  fit: logistic (94/96 wells), median r = 0.615
 ```
 
 ## See your plate
@@ -117,6 +119,28 @@ flagged wells so only clean curves enter the mean:
 gr_export(plate, collapse_tech = TRUE, drop_flagged = TRUE)
 ```
 
+## Estimate growth rates
+
+`gr_fit()` fits every well — QC-aware, on spatially corrected values — with
+your choice of engine: a parametric logistic model (`nls`) returning growth
+rate `r`, carrying capacity `K`, lag and doubling time, or the nonparametric
+**easylinear** method (Hall et al. 2014): rolling regressions on log OD whose
+steepest R²-filtered window gives the maximum per-capita growth rate. Wells
+that cannot be fitted get `fit_ok = FALSE` and a note, never an error.
+
+<img src="man/figures/README-fit.png" width="700" alt="Observed growth curves with fitted logistic models overlaid"/>
+
+`gr_fit_summary()` then does the step most fitting tools leave to you:
+averaging parameters over technical and biological replicates *after*
+excluding flagged wells and failed fits:
+
+```r
+gr_fit_summary(plate)
+#>   strain   medium n_wells r_mean  r_sd K_mean  K_sd ...
+#>   strain_1 LB           8  0.62  0.011   1.19 0.028
+#>   strain_2 LB           7  0.61  0.013   1.18 0.031
+```
+
 ## Edge-effect correction
 
 `gr_spatial()` estimates row and column effects on max OD (or AUC) with
@@ -126,7 +150,7 @@ kept in `value_raw`. It is deliberately simple and clearly labeled
 **experimental** — and no correction rescues a design that confounds
 treatment with plate position. Randomise your layouts.
 
-## Hand-off to model fitting
+## Prefer another fitting engine?
 
 ```r
 as_growthcurver(plate, drop_flagged = TRUE)   # wide: time + one column per well
@@ -142,15 +166,18 @@ gr_report(plate, file = "run1_qc.html")
 
 renders a bundled Quarto (`.qmd`) template into a single self-contained HTML
 file — plate maps, flagged wells with reasons, the thresholds used, all
-curves, and spatial effects — for keeping alongside the raw export. Needs the
+curves, growth parameters, and spatial effects — for keeping alongside the
+raw export. Needs the
 [Quarto CLI](https://quarto.org) (bundled with recent RStudio).
 
 ## Status & roadmap
 
 - Generic wide/long CSV/TSV/Excel parsers, QC flags, ggplot2 plate/curve
-  plots, replicate handling, median-polish spatial correction, exporters, and
-  the Quarto report: **done**, with `R CMD check` clean and a synthetic-plate
-  test suite that recovers every injected artifact.
+  plots, replicate handling, median-polish spatial correction, logistic and
+  easylinear growth fitting with replicate summaries, exporters, and the
+  Quarto report: **done**, with `R CMD check` clean and a synthetic-plate
+  test suite that recovers every injected artifact and the true growth
+  parameters.
 - Tecan and BioTek native parsers: **planned** — they will be written against
   real example exports, not guessed formats. If you can share an export file,
   please [open an issue](https://github.com/loukesio/gRate/issues).

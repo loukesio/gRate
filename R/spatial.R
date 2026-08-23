@@ -110,6 +110,13 @@ gr_spatial <- function(plate,
   )
 
   if (correct) {
+    if (!is.null(plate$fit)) {
+      message("Existing fit results were computed on uncorrected values; ",
+              "discarding them - rerun gr_fit().")
+      plate$fit <- NULL
+      plate$data$fitted <- NULL
+      plate$meta$fit_method <- NULL
+    }
     if (!"value_raw" %in% names(plate$data)) {
       plate$data$value_raw <- plate$data$value
     }
