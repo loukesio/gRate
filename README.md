@@ -153,6 +153,24 @@ gr_fit_summary(plate)
 #>   strain_2 LB           7  0.61  0.013   1.18 0.031
 ```
 
+## Compare strains or conditions
+
+`gr_compare()` tests whether r (or K, lag, ...) differs between groups — at
+the right unit of replication. Technical replicates are averaged into their
+biological replicate *before* any test, so wells never inflate the sample
+size (the pseudoreplication trap). Welch t-test / ANOVA with Holm-adjusted
+pairwise comparisons, or Kruskal-Wallis; `gr_plot_compare()` draws replicate
+points with group means and CIs.
+
+```r
+cmp <- gr_compare(plate, what = "r", by = "strain")
+cmp
+#> <gr_compare> r by strain (unit: biological replicates)
+#>   Welch two-sample t-test: statistic = 38.3, p = 1.5e-16
+#>   ...
+gr_plot_compare(cmp)
+```
+
 ## Edge-effect correction
 
 `gr_spatial()` estimates row and column effects on max OD (or AUC) with

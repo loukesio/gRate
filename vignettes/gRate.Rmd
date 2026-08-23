@@ -212,6 +212,24 @@ gr_fit_summary(plate)
 gr_fit_summary(plate, by = c("strain", "medium", "bio_rep"))
 ```
 
+### Compare groups
+
+`gr_compare()` tests whether a parameter differs between strains or
+conditions — at the right unit of replication. Technical replicates are
+averaged into their biological replicate *before* any test, so wells never
+inflate the sample size. Two groups get a Welch t-test, more get Welch's
+ANOVA plus Holm-adjusted pairwise comparisons (`method = "kruskal"` for the
+nonparametric versions).
+
+```{r compare}
+cmp <- gr_compare(plate, what = "r", by = "strain")
+cmp
+gr_plot_compare(cmp)
+```
+
+(The bundled example data were generated with the same growth rate for every
+strain, so an honest test finds nothing — exactly as it should.)
+
 ## 6. Export
 
 Prefer growthcurver or gcplyr as the fitting engine? `gr_export()` returns
