@@ -184,6 +184,22 @@ gr_plot_fit(plate, wells = c("A1", "B3", "C5", "E4"))
 gr_plot_plate(plate, "r")
 ```
 
+### The results table
+
+`gr_results()` is the table to carry into your analysis: one row per well,
+with your metadata, the parameters you care about, and the QC verdict side by
+side. Pick parameters with `params`, drop flagged wells if you want only
+clean fits, or write it straight to CSV with `file`.
+
+```{r results}
+gr_results(plate)
+gr_results(plate, params = c("r", "K"), drop_flagged = TRUE)
+```
+
+```{r results-csv, eval = FALSE}
+gr_results(plate, file = "run1_growth_parameters.csv")
+```
+
 ### Summarise across replicates
 
 `gr_fit_summary()` is the step most fitting tools leave to you: it averages

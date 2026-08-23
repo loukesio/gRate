@@ -314,3 +314,86 @@ gr_fit_summary <- function(plate, by = NULL, drop_flagged = TRUE) {
       .groups = "drop"
     )
 }
+
+#' The results table: growth parameters joined with your metadata
+#'
+#' Returns the table you actually want after a fit: one row per well with the
+#' experimental metadata from [gr_layout()] (strain, medium, replicates, ...),
+#' the growth parameters from [gr_fit()], and the QC verdict from [gr_qc()] —
+#' ready for plotting, statistics, or saving.
+#'
+#' This differs from `plate$fit` (parameters only, no metadata) and from
+#' [gr_fit_summary()] (already averaged over replicates): `gr_results()` is
+#' the full per-well table that sits between the two.
+#'
+#' @param plate A `gr_plate` object after [gr_fit()].
+#' @param params Which fit parameters to include, any of `"r"`, `"K"`,
+#'   `"lag"`, `"doubling_time"`, `"N0"`, `"t_rmax"`, `"sigma"`. Defaults to
+#'   the first four — the ones most analyses care about.
+#' @param drop_flagged If `TRUE`, wells flagged by [gr_qc()] are removed.
+#'   Default `FALSE` — the `flagged` and `reasons` columns are included
+#'   instead, so nothing disappears silently.
+#' @param file Optional path; if given, the table is also written there as a
+#'   CSV and the tibble returned invisibly.
+#'
+#' @return A tibble with columns `well`, `row`, `col`, the metadata columns,
+#'   the requested parameters, `fit_ok`, `note`, and (when QC has run)
+#'   `flagged` and `reasons`.
+#' @export
+#' @seealso [gr_fit()], [gr_fit_summary()]
+#' @examples
+#' plate <- gr_read(system.file("extdata", "growth_long.csv", package = "gRate")) |>
+#'   gr_layout(system.file("extdata", "layout_long.csv", package = "gRate")) |>
+#'   gr_qc() |>
+#'   gr_fit()
+#'
+#' gr_results(plate)
+#' gr_results(plate, params = c("r", "K"), drop_flagged = TRUE)
+#' \dontrun{
+#' gr_results(plate, file = "run1_growth_parameters.csv")
+#' }
+gr_results <- function(plate,
+                       params = c("r", "K", "lag", "doubling_time"),
+                       drop_flagged = FALSE,
+                       file = NULL) {
+  gr_assert_plate(plate)
+  if (is.null(plate$fit)) {
+    stop("No fit results; run gr_fit() first.", call. = FALSE)
+  }
+  params <- match.arg(
+    params,
+    c("r", "K", "lag", "doubling_time", "N0", "t_rmax", "sigma"),
+    several.ok = TRUE
+  )
+
+  meta_cols <- setdiff(
+    names(plate$data),
+    c("well", "row", "col", "time", "value", "value_raw", "fitted")
+  )
+  out <- plate$fit[c("well", "row", "col", params, "fit_ok", "note")]
+  if (length(meta_cols) > 0) {
+    well_meta <- dplyr::distinct(
+      plate$data, .data$well, dplyr::across(dplyr::all_of(meta_cols))
+    )
+    out <- dplyr::left_join(out, well_meta, by = "well")
+    out <- out[c("well", "row", "col", meta_cols, params, "fit_ok", "note")]
+  }
+
+  if (!is.null(plate$qc)) {
+    out <- dplyr::left_join(out, plate$qc[c("well", "flagged", "reasons")],
+                            by = "well")
+    if (drop_flagged) {
+      out <- out[!out$flagged, ]
+      out$flagged <- out$reasons <- NULL
+    }
+  } else if (drop_flagged) {
+    stop("`drop_flagged = TRUE` requires QC results; run gr_qc() first.",
+         call. = FALSE)
+  }
+
+  if (!is.null(file)) {
+    utils::write.csv(out, file, row.names = FALSE)
+    return(invisible(out))
+  }
+  out
+}

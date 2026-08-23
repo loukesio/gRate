@@ -104,3 +104,44 @@ test_that("fit results appear in print, plate map, and fit plot", {
   expect_error(gr_plot_fit(synthetic_plate()), "run gr_fit")
   expect_error(gr_plot_plate(synthetic_plate(), "r"), "gr_fit")
 })
+
+test_that("gr_results joins parameters, metadata, and QC per well", {
+  plate <- synthetic_plate() |>
+    gr_layout(system.file("extdata", "layout_long.csv", package = "gRate")) |>
+    gr_qc() |>
+    gr_fit()
+
+  out <- gr_results(plate)
+  expect_equal(nrow(out), 96)
+  expect_true(all(c("well", "strain", "medium", "bio_rep", "tech_rep",
+                    "r", "K", "lag", "doubling_time",
+                    "fit_ok", "note", "flagged", "reasons") %in% names(out)))
+  expect_false("sigma" %in% names(out))
+  expect_true(out$flagged[out$well == "C5"])
+  expect_true(is.na(out$r[out$well == "C5"]))
+
+  # parameter selection
+  sel <- gr_results(plate, params = c("r", "sigma"))
+  expect_true(all(c("r", "sigma") %in% names(sel)))
+  expect_false(any(c("K", "lag") %in% names(sel)))
+
+  # drop_flagged removes exactly the flagged wells and the QC columns
+  clean <- gr_results(plate, drop_flagged = TRUE)
+  expect_equal(nrow(clean), 91)
+  expect_false(any(c("flagged", "reasons") %in% names(clean)))
+})
+
+test_that("gr_results works without layout or QC, and writes CSV", {
+  plate <- gr_fit(synthetic_plate())
+  out <- gr_results(plate)
+  expect_equal(nrow(out), 96)
+  expect_false(any(c("flagged", "reasons") %in% names(out)))
+  expect_error(gr_results(plate, drop_flagged = TRUE), "run gr_qc")
+  expect_error(gr_results(synthetic_plate()), "run gr_fit")
+
+  path <- withr::local_tempfile(fileext = ".csv")
+  ret <- gr_results(plate, file = path)
+  expect_true(file.exists(path))
+  expect_equal(nrow(utils::read.csv(path)), 96)
+  expect_s3_class(ret, "tbl_df")
+})

@@ -130,6 +130,18 @@ that cannot be fitted get `fit_ok = FALSE` and a note, never an error.
 
 <img src="man/figures/README-fit.png" width="700" alt="Observed growth curves with fitted logistic models overlaid"/>
 
+`gr_results()` gives you *the* table to carry into your analysis — one row
+per well with your metadata, the parameters you care about, and the QC
+verdict side by side (or straight to CSV with `file = "..."`):
+
+```r
+gr_results(plate, params = c("r", "K", "lag"), drop_flagged = TRUE)
+#>   well  strain   medium bio_rep tech_rep     r     K   lag fit_ok
+#>   A1    strain_1 LB           1        1 0.615  1.10  4.78 TRUE
+#>   A2    strain_1 LB           1        2 0.618  1.12  4.81 TRUE
+#>   ...
+```
+
 `gr_fit_summary()` then does the step most fitting tools leave to you:
 averaging parameters over technical and biological replicates *after*
 excluding flagged wells and failed fits:
