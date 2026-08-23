@@ -170,6 +170,16 @@ spatially corrected values:
 Wells that cannot be fitted (the dead wells here) get `fit_ok = FALSE` and a
 `note` — never an error, and never silently dropped.
 
+Want uncertainty on the estimates? `boot = 200` resamples the residuals and
+refits per well, adding percentile confidence intervals (`r_lo`/`r_hi`, and
+`K_lo`/`K_hi` for the logistic method) to the fit table and to
+`gr_results()`. It takes a minute for a full plate, so it is off by default:
+
+```{r fit-boot, eval = FALSE}
+plate <- gr_fit(plate, boot = 200)
+gr_results(plate, params = c("r", "K"))  # now includes r_lo, r_hi, K_lo, K_hi
+```
+
 ```{r fit}
 plate <- gr_fit(plate)
 plate

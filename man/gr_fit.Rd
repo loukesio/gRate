@@ -10,7 +10,9 @@ gr_fit(
   n_baseline = 3,
   min_od = 0.05,
   window = 5,
-  min_r2 = 0.97
+  min_r2 = 0.97,
+  boot = 0,
+  conf_level = 0.95
 )
 }
 \arguments{
@@ -33,6 +35,17 @@ rolling regression. Default \code{5} (Hall et al.'s choice).}
 
 \item{min_r2}{For \code{method = "easylinear"}: minimum R-squared for a window
 to be considered exponential growth. Default \code{0.97}.}
+
+\item{boot}{Number of bootstrap resamples for confidence intervals on the
+parameters. Default \code{0} (off). With \code{boot > 0} (200 is a reasonable
+choice), residuals are resampled and the model refitted per resample;
+\verb{$fit} gains percentile intervals \code{r_lo}/\code{r_hi} (both methods) and
+\code{K_lo}/\code{K_hi} (logistic only — easylinear's K is an empirical maximum,
+not a fitted parameter). Wells where fewer than half the resamples
+converge get \code{NA} intervals.}
+
+\item{conf_level}{Confidence level for the bootstrap intervals. Default
+\code{0.95}.}
 }
 \value{
 The \code{gr_plate} with \verb{$fit} set: a tibble with one row per well and

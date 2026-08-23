@@ -145,3 +145,39 @@ test_that("gr_results works without layout or QC, and writes CSV", {
   expect_equal(nrow(utils::read.csv(path)), 96)
   expect_s3_class(ret, "tbl_df")
 })
+
+test_that("bootstrap CIs cover the true growth rate", {
+  # Small 6-well plate so 100 resamples stay fast: true r = 0.6. Midpoint
+  # t = 12 keeps the first readings at pure baseline — with earlier growth,
+  # baseline subtraction biases r slightly and honest CIs (which reflect only
+  # sampling noise) rightly do not cover that bias.
+  set.seed(11)
+  times <- seq(0, 30, by = 0.5)
+  wells <- c("A1", "A2", "B1", "B2", "C1", "C2")
+  df <- do.call(rbind, lapply(wells, function(w) {
+    K <- 1.2 * runif(1, 0.97, 1.03)
+    data.frame(well = w, time = times,
+               value = 0.05 + K / (1 + exp(-0.6 * (times - 12))) +
+                 rnorm(length(times), 0, 0.003))
+  }))
+  plate <- gr_read(df, format = "long")
+
+  fit <- gr_fit(plate, boot = 100)$fit
+  expect_true(all(fit$r_lo < fit$r & fit$r < fit$r_hi))
+  expect_true(all(fit$K_lo < fit$K & fit$K < fit$K_hi))
+  covered <- fit$r_lo <= 0.6 & 0.6 <= fit$r_hi
+  expect_gte(sum(covered), 4)  # ~95% nominal on 6 wells
+
+  el <- gr_fit(plate, method = "easylinear", boot = 100)$fit
+  expect_true(all(el$r_lo < el$r & el$r < el$r_hi))
+  expect_true(all(is.na(el$K_lo)))  # easylinear K is empirical, no CI
+
+  # CI columns travel with their parameter through gr_results()
+  res <- gr_results(gr_fit(plate, boot = 100), params = c("r", "K"))
+  expect_true(all(c("r_lo", "r_hi", "K_lo", "K_hi") %in% names(res)))
+
+  # boot = 0 (default): columns exist but are all NA, and are not exported
+  plain <- gr_fit(plate)
+  expect_true(all(is.na(plain$fit$r_lo)))
+  expect_false("r_lo" %in% names(gr_results(plain)))
+})

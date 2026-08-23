@@ -126,7 +126,8 @@ your choice of engine: a parametric logistic model (`nls`) returning growth
 rate `r`, carrying capacity `K`, lag and doubling time, or the nonparametric
 **easylinear** method (Hall et al. 2014): rolling regressions on log OD whose
 steepest R²-filtered window gives the maximum per-capita growth rate. Wells
-that cannot be fitted get `fit_ok = FALSE` and a note, never an error.
+that cannot be fitted get `fit_ok = FALSE` and a note, never an error. Add
+`boot = 200` for bootstrap confidence intervals on `r` (and `K`) per well.
 
 <img src="man/figures/README-fit.png" width="700" alt="Observed growth curves with fitted logistic models overlaid"/>
 

@@ -46,6 +46,15 @@
 #'   rolling regression. Default `5` (Hall et al.'s choice).
 #' @param min_r2 For `method = "easylinear"`: minimum R-squared for a window
 #'   to be considered exponential growth. Default `0.97`.
+#' @param boot Number of bootstrap resamples for confidence intervals on the
+#'   parameters. Default `0` (off). With `boot > 0` (200 is a reasonable
+#'   choice), residuals are resampled and the model refitted per resample;
+#'   `$fit` gains percentile intervals `r_lo`/`r_hi` (both methods) and
+#'   `K_lo`/`K_hi` (logistic only — easylinear's K is an empirical maximum,
+#'   not a fitted parameter). Wells where fewer than half the resamples
+#'   converge get `NA` intervals.
+#' @param conf_level Confidence level for the bootstrap intervals. Default
+#'   `0.95`.
 #'
 #' @references Hall BG, Acar H, Nandipati A, Barlow M (2014). Growth rates
 #'   made easy. *Molecular Biology and Evolution* 31(1), 232-238.
@@ -70,15 +79,20 @@ gr_fit <- function(plate,
                    n_baseline = 3,
                    min_od = 0.05,
                    window = 5,
-                   min_r2 = 0.97) {
+                   min_r2 = 0.97,
+                   boot = 0,
+                   conf_level = 0.95) {
   gr_assert_plate(plate)
   method <- match.arg(method)
 
   fit_fun <- switch(
     method,
-    logistic = function(time, value) gr_fit_logistic(time, value, n_baseline),
+    logistic = function(time, value) {
+      gr_fit_logistic(time, value, n_baseline, boot, conf_level)
+    },
     easylinear = function(time, value) {
-      gr_fit_easylinear(time, value, n_baseline, min_od, window, min_r2)
+      gr_fit_easylinear(time, value, n_baseline, min_od, window, min_r2,
+                        boot, conf_level)
     }
   )
 
@@ -118,14 +132,26 @@ gr_fit_failure <- function(note) {
     params = list(
       r = NA_real_, K = NA_real_, N0 = NA_real_, lag = NA_real_,
       t_rmax = NA_real_, doubling_time = NA_real_, sigma = NA_real_,
+      r_lo = NA_real_, r_hi = NA_real_, K_lo = NA_real_, K_hi = NA_real_,
       fit_ok = FALSE, note = note
     ),
     fitted = NULL
   )
 }
 
+# Internal: percentile interval from bootstrap replicates, NA unless at least
+# half of the requested resamples produced a value.
+gr_boot_ci <- function(reps, boot, conf_level) {
+  reps <- reps[is.finite(reps)]
+  if (length(reps) < boot / 2) {
+    return(c(NA_real_, NA_real_))
+  }
+  unname(stats::quantile(reps, c((1 - conf_level) / 2, 1 - (1 - conf_level) / 2)))
+}
+
 # Internal: logistic fit for one well (time-sorted vectors).
-gr_fit_logistic <- function(time, value, n_baseline) {
+gr_fit_logistic <- function(time, value, n_baseline, boot = 0,
+                            conf_level = 0.95) {
   baseline <- mean(utils::head(value, n_baseline))
   n <- value - baseline
 
@@ -154,8 +180,34 @@ gr_fit_logistic <- function(time, value, n_baseline) {
     return(out)
   }
 
+  ci <- list(r_lo = NA_real_, r_hi = NA_real_,
+             K_lo = NA_real_, K_hi = NA_real_)
+  if (boot > 0) {
+    hat <- stats::fitted(fit)
+    resid <- stats::residuals(fit)
+    reps <- vapply(seq_len(boot), function(i) {
+      n_star <- hat + sample(resid, replace = TRUE)
+      re <- tryCatch(
+        suppressWarnings(stats::nls(
+          n_star ~ Asym / (1 + exp((xmid - time) / scal)),
+          data = data.frame(time = time, n_star = n_star),
+          start = list(Asym = K, xmid = xmid, scal = scal)
+        )),
+        error = function(e) NULL
+      )
+      if (is.null(re)) c(NA_real_, NA_real_) else {
+        cfe <- stats::coef(re)
+        c(1 / cfe[["scal"]], cfe[["Asym"]])
+      }
+    }, numeric(2))
+    r_ci <- gr_boot_ci(reps[1, ], boot, conf_level)
+    k_ci <- gr_boot_ci(reps[2, ], boot, conf_level)
+    ci <- list(r_lo = r_ci[1], r_hi = r_ci[2],
+               K_lo = k_ci[1], K_hi = k_ci[2])
+  }
+
   list(
-    params = list(
+    params = c(list(
       r = r,
       K = K,
       N0 = K / (1 + exp(xmid / scal)),
@@ -164,16 +216,18 @@ gr_fit_logistic <- function(time, value, n_baseline) {
       lag = xmid - 2 * scal,
       t_rmax = xmid,
       doubling_time = log(2) * scal,
-      sigma = stats::sigma(fit),
+      sigma = stats::sigma(fit)
+    ), ci, list(
       fit_ok = TRUE,
       note = ""
-    ),
+    )),
     fitted = stats::fitted(fit) + baseline
   )
 }
 
 # Internal: rolling-regression mu-max estimate for one well (Hall et al. 2014).
-gr_fit_easylinear <- function(time, value, n_baseline, min_od, window, min_r2) {
+gr_fit_easylinear <- function(time, value, n_baseline, min_od, window, min_r2,
+                              boot = 0, conf_level = 0.95) {
   baseline <- mean(utils::head(value, n_baseline))
   n <- value - baseline
   keep <- n > min_od
@@ -221,18 +275,35 @@ gr_fit_easylinear <- function(time, value, n_baseline, min_od, window, min_r2) {
   fitted <- rep(NA_real_, length(time))
   fitted[which(keep)[idx]] <- exp(b + r * t_keep[idx]) + baseline
 
+  ci <- list(r_lo = NA_real_, r_hi = NA_real_,
+             K_lo = NA_real_, K_hi = NA_real_)
+  if (boot > 0) {
+    tw <- t_keep[idx]
+    yw <- y[idx]
+    yhat <- b + r * tw
+    res_w <- yw - yhat
+    reps <- vapply(seq_len(boot), function(i) {
+      y_star <- yhat + sample(res_w, replace = TRUE)
+      stats::cov(tw, y_star) / stats::var(tw)
+    }, numeric(1))
+    r_ci <- gr_boot_ci(reps, boot, conf_level)
+    ci$r_lo <- r_ci[1]
+    ci$r_hi <- r_ci[2]
+  }
+
   list(
-    params = list(
+    params = c(list(
       r = r,
       K = max(stats::runmed(n[keep], 3)),
       N0 = exp(log_n0),
       lag = (log_n0 - b) / r,
       t_rmax = mean(t_keep[idx]),
       doubling_time = log(2) / r,
-      sigma = stats::sd(exp(b + r * t_keep[idx]) - n[keep][idx]),
+      sigma = stats::sd(exp(b + r * t_keep[idx]) - n[keep][idx])
+    ), ci, list(
       fit_ok = TRUE,
       note = ""
-    ),
+    )),
     fitted = fitted
   )
 }
@@ -337,8 +408,9 @@ gr_fit_summary <- function(plate, by = NULL, drop_flagged = TRUE) {
 #'   CSV and the tibble returned invisibly.
 #'
 #' @return A tibble with columns `well`, `row`, `col`, the metadata columns,
-#'   the requested parameters, `fit_ok`, `note`, and (when QC has run)
-#'   `flagged` and `reasons`.
+#'   the requested parameters (with their `_lo`/`_hi` bootstrap intervals when
+#'   [gr_fit()] was run with `boot > 0`), `fit_ok`, `note`, and (when QC has
+#'   run) `flagged` and `reasons`.
 #' @export
 #' @seealso [gr_fit()], [gr_fit_summary()]
 #' @examples
@@ -370,13 +442,24 @@ gr_results <- function(plate,
     names(plate$data),
     c("well", "row", "col", "time", "value", "value_raw", "fitted")
   )
-  out <- plate$fit[c("well", "row", "col", params, "fit_ok", "note")]
+  # Bootstrap intervals (when gr_fit(boot > 0) computed them) travel with
+  # their parameter.
+  ci_cols <- intersect(
+    paste0(rep(params, each = 2), c("_lo", "_hi")),
+    names(plate$fit)
+  )
+  ci_cols <- ci_cols[vapply(plate$fit[ci_cols],
+                            function(x) any(!is.na(x)), logical(1))]
+  value_cols <- c(params, ci_cols)
+
+  out <- plate$fit[c("well", "row", "col", value_cols, "fit_ok", "note")]
   if (length(meta_cols) > 0) {
     well_meta <- dplyr::distinct(
       plate$data, .data$well, dplyr::across(dplyr::all_of(meta_cols))
     )
     out <- dplyr::left_join(out, well_meta, by = "well")
-    out <- out[c("well", "row", "col", meta_cols, params, "fit_ok", "note")]
+    out <- out[c("well", "row", "col", meta_cols, value_cols,
+                 "fit_ok", "note")]
   }
 
   if (!is.null(plate$qc)) {

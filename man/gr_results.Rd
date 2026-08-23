@@ -27,8 +27,9 @@ CSV and the tibble returned invisibly.}
 }
 \value{
 A tibble with columns \code{well}, \code{row}, \code{col}, the metadata columns,
-the requested parameters, \code{fit_ok}, \code{note}, and (when QC has run)
-\code{flagged} and \code{reasons}.
+the requested parameters (with their \verb{_lo}/\verb{_hi} bootstrap intervals when
+\code{\link[=gr_fit]{gr_fit()}} was run with \code{boot > 0}), \code{fit_ok}, \code{note}, and (when QC has
+run) \code{flagged} and \code{reasons}.
 }
 \description{
 Returns the table you actually want after a fit: one row per well with the
