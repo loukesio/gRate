@@ -1,18 +1,19 @@
 #' gRate colors and ggplot2 theme
 #'
 #' All gRate plots share one design system: a colorblind-validated categorical
-#' palette (assigned in fixed slot order, never cycled), the multi-hue
-#' `heatmap0` ramp for magnitude (heatmaps), a reserved status red for flagged
-#' wells, and a quiet chart chrome — hairline gridlines, muted axis ink, no
-#' decoration louder than the data.
+#' palette (assigned in fixed slot order, never cycled), the perceptually
+#' uniform `rocket` ramp for magnitude (heatmaps) — the same palette seaborn
+#' uses for its heatmaps — a reserved status red for flagged wells, and a
+#' quiet chart chrome: hairline gridlines, muted axis ink, no decoration
+#' louder than the data.
 #'
 #' `gr_colors` exposes the named roles so your own plots can match:
-#' `$series` (eight categorical hues in slot order), `$sequential` (the
-#' nine-colour `heatmap0` ramp from the
-#' [ltc palette package](https://github.com/loukesio/ltc_palettes), deep teal
-#' through sand to dark red), `$flagged` (status red), `$fitted` (the
-#' fit-line blue), and the ink roles `$ink`, `$ink2`, `$muted`, `$grid`,
-#' `$baseline`, `$surface`, `$neutral`.
+#' `$series` (eight categorical hues in slot order), `$sequential` (nine
+#' steps of the `rocket` colormap: perceptually uniform and
+#' luminance-monotonic, so equal value differences get equal visual
+#' differences — near-black low through crimson to pale high), `$flagged`
+#' (status red), `$fitted` (the fit-line blue), and the ink roles `$ink`,
+#' `$ink2`, `$muted`, `$grid`, `$baseline`, `$surface`, `$neutral`.
 #'
 #' @format `gr_colors` is a named list of hex colors and character vectors.
 #' @export
@@ -25,12 +26,12 @@ gr_colors <- list(
     "#2a78d6", "#eb6834", "#1baf7a", "#eda100",
     "#e87ba4", "#008300", "#4a3aa7", "#e34948"
   ),
-  # Heatmap ramp: the "heatmap0" palette from the ltc package
-  # (github.com/loukesio/ltc_palettes), vendored with attribution. Multi-hue
-  # so clustered values still separate on the plate maps.
+  # Heatmap ramp: viridisLite::rocket(9) - seaborn's heatmap default.
+  # Perceptually uniform and luminance-monotonic: equal value differences
+  # read as equal visual differences, so a quiet plate looks quiet.
   sequential = c(
-    "#001219", "#005F73", "#0A9396", "#94D2BD", "#E9D8A6",
-    "#EE9B00", "#CA6702", "#AE2012", "#9B2226"
+    "#03051A", "#30173A", "#611F53", "#961C5B", "#CB1B4F",
+    "#EC4B3E", "#F4875E", "#F6BB97", "#FAEBDD"
   ),
   flagged = "#d03b3b",   # status red - reserved, never used for a series
   fitted = "#2a78d6",    # fitted-model lines
@@ -108,12 +109,13 @@ gr_scale_categorical <- function(aesthetic, n_levels, name = NULL) {
   }
 }
 
-# Internal: sequential fill for magnitude heatmaps. With `equalize`, the
-# ramp's colours are anchored at the data's own quantiles, so values that
-# cluster in a narrow band still spread across several hues; the colourbar
-# warps to match, staying truthful. Falls back to a linear mapping when the
-# data are (nearly) constant.
-gr_scale_sequential <- function(x = NULL, name = NULL, equalize = TRUE) {
+# Internal: sequential fill for magnitude heatmaps. Linear by default: the
+# rocket ramp is perceptually uniform, so the honest mapping is also the
+# readable one. `equalize` (opt-in) anchors the colours at the data's own
+# quantiles instead - it makes clustered values separate, but exaggerates
+# small differences, so it is never the default. Falls back to linear when
+# the data are (nearly) constant.
+gr_scale_sequential <- function(x = NULL, name = NULL, equalize = FALSE) {
   pal <- gr_colors$sequential
   values <- NULL
   if (equalize && !is.null(x)) {

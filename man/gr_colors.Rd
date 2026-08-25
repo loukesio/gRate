@@ -21,19 +21,20 @@ theme_gr(base_size = 11)
 }
 \description{
 All gRate plots share one design system: a colorblind-validated categorical
-palette (assigned in fixed slot order, never cycled), the multi-hue
-\code{heatmap0} ramp for magnitude (heatmaps), a reserved status red for flagged
-wells, and a quiet chart chrome — hairline gridlines, muted axis ink, no
-decoration louder than the data.
+palette (assigned in fixed slot order, never cycled), the perceptually
+uniform \code{rocket} ramp for magnitude (heatmaps) — the same palette seaborn
+uses for its heatmaps — a reserved status red for flagged wells, and a
+quiet chart chrome: hairline gridlines, muted axis ink, no decoration
+louder than the data.
 }
 \details{
 \code{gr_colors} exposes the named roles so your own plots can match:
-\verb{$series} (eight categorical hues in slot order), \verb{$sequential} (the
-nine-colour \code{heatmap0} ramp from the
-\href{https://github.com/loukesio/ltc_palettes}{ltc palette package}, deep teal
-through sand to dark red), \verb{$flagged} (status red), \verb{$fitted} (the
-fit-line blue), and the ink roles \verb{$ink}, \verb{$ink2}, \verb{$muted}, \verb{$grid},
-\verb{$baseline}, \verb{$surface}, \verb{$neutral}.
+\verb{$series} (eight categorical hues in slot order), \verb{$sequential} (nine
+steps of the \code{rocket} colormap: perceptually uniform and
+luminance-monotonic, so equal value differences get equal visual
+differences — near-black low through crimson to pale high), \verb{$flagged}
+(status red), \verb{$fitted} (the fit-line blue), and the ink roles \verb{$ink},
+\verb{$ink2}, \verb{$muted}, \verb{$grid}, \verb{$baseline}, \verb{$surface}, \verb{$neutral}.
 }
 \examples{
 gr_colors$series[1:3]

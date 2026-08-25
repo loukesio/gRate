@@ -15,10 +15,12 @@
 #' @param fill What to colour wells by (see Details). Default `"max_od"`.
 #' @param label If `TRUE`, print the value in each well (rounded for numeric
 #'   fills). Default `FALSE`.
-#' @param equalize For numeric fills: if `TRUE` (default), the heatmap ramp's
-#'   colours are anchored at the data's own quantiles, so wells that cluster
-#'   in a narrow value band still separate visibly (the colourbar warps to
-#'   match, staying truthful). Set `FALSE` for a plain linear mapping.
+#' @param equalize For numeric fills: if `TRUE`, the ramp's colours are
+#'   anchored at the data's own quantiles, so wells clustered in a narrow
+#'   value band separate visibly. **Off by default**: equalization also
+#'   exaggerates trivial differences, making a quiet plate look dramatic.
+#'   The default linear mapping on the perceptually uniform ramp shows equal
+#'   differences equally.
 #'
 #' @return A ggplot object (modify or print it like any other ggplot).
 #' @export
@@ -28,7 +30,7 @@
 #' gr_plot_plate(plate, "max_od")
 #' gr_plot_plate(plate, "flagged")
 gr_plot_plate <- function(plate, fill = "max_od", label = FALSE,
-                          equalize = TRUE) {
+                          equalize = FALSE) {
   gr_assert_plate(plate)
 
   summary_stats <- c("max_od", "auc", "delta_od", "baseline")
