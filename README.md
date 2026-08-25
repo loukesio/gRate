@@ -228,6 +228,29 @@ raw export. Needs the
 `interactive = TRUE` for zoomable, hoverable plotly figures (hover a curve to
 see its well) and a searchable per-well results table.
 
+## Related packages
+
+Several good R packages analyse microbial growth curves; they differ in what
+they fit and in how much of the surrounding workflow they cover:
+
+| Package | Approach | Scope |
+|---|---|---|
+| [growthcurver](https://cran.r-project.org/package=growthcurver) | Logistic `nls` fit per well | Fitting only; wide-format input, no QC or layout handling |
+| [gcplyr](https://cran.r-project.org/package=gcplyr) | Tidy data wrangling + model-free per-capita derivatives | Flexible building blocks; you assemble the pipeline (incl. manual diauxie analysis) yourself |
+| [growthrates](https://cran.r-project.org/package=growthrates) | Multiple parametric models + an easylinear implementation | Fitting engines; no QC, layout, or plate-level tooling |
+| [ipolygrowth](https://cran.r-project.org/package=ipolygrowth) | Fourth-degree polynomial via OLS, parameters from derivatives | Avoids `nls` convergence issues; replicates organized in one table |
+| [QurvE](https://cran.r-project.org/package=QurvE) | Multi-model growth/fluorescence analysis with a GUI | Broad scope incl. dose-response; GUI-centric workflow |
+
+gRate's focus is the parts these leave out: automated per-well **QC
+flagging**, **spatial/edge-effect correction**, **replicate-aware statistics**
+(pseudoreplication-safe comparisons, technical-replicate averaging), honest
+**model selection** (AIC + bootstrap CIs), **diauxie detection**,
+**multi-method lag agreement**, and a one-call **Quarto report** — while
+`gr_export()` / `as_growthcurver()` / `as_gcplyr()` hand clean data to any of
+the above if you prefer their fitting engines. Convergence-robust rate
+estimation is covered by `gr_fit(method = "easylinear")` (rolling OLS, no
+`nls`), with graceful `fit_ok = FALSE` notes where parametric fits fail.
+
 ## Status & roadmap
 
 - Generic wide/long CSV/TSV/Excel parsers, QC flags, ggplot2 plate/curve
