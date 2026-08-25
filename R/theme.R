@@ -1,16 +1,18 @@
 #' gRate colors and ggplot2 theme
 #'
 #' All gRate plots share one design system: a colorblind-validated categorical
-#' palette (assigned in fixed slot order, never cycled), a single-hue blue ramp
-#' for magnitude (heatmaps), a reserved status red for flagged wells, and a
-#' quiet chart chrome — hairline gridlines, muted axis ink, no decoration
-#' louder than the data.
+#' palette (assigned in fixed slot order, never cycled), the multi-hue
+#' `heatmap0` ramp for magnitude (heatmaps), a reserved status red for flagged
+#' wells, and a quiet chart chrome — hairline gridlines, muted axis ink, no
+#' decoration louder than the data.
 #'
 #' `gr_colors` exposes the named roles so your own plots can match:
-#' `$series` (eight categorical hues in slot order), `$sequential` (a
-#' light-to-dark blue ramp), `$flagged` (status red), `$fitted` (the fit-line
-#' blue), and the ink roles `$ink`, `$ink2`, `$muted`, `$grid`, `$baseline`,
-#' `$surface`, `$neutral`.
+#' `$series` (eight categorical hues in slot order), `$sequential` (the
+#' nine-colour `heatmap0` ramp from the
+#' [ltc palette package](https://github.com/loukesio/ltc_palettes), deep teal
+#' through sand to dark red), `$flagged` (status red), `$fitted` (the
+#' fit-line blue), and the ink roles `$ink`, `$ink2`, `$muted`, `$grid`,
+#' `$baseline`, `$surface`, `$neutral`.
 #'
 #' @format `gr_colors` is a named list of hex colors and character vectors.
 #' @export
@@ -23,10 +25,12 @@ gr_colors <- list(
     "#2a78d6", "#eb6834", "#1baf7a", "#eda100",
     "#e87ba4", "#008300", "#4a3aa7", "#e34948"
   ),
-  # One-hue sequential ramp (blue, light -> dark) for magnitude fills.
+  # Heatmap ramp: the "heatmap0" palette from the ltc package
+  # (github.com/loukesio/ltc_palettes), vendored with attribution. Multi-hue
+  # so clustered values still separate on the plate maps.
   sequential = c(
-    "#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5",
-    "#256abf", "#184f95", "#0d366b"
+    "#001219", "#005F73", "#0A9396", "#94D2BD", "#E9D8A6",
+    "#EE9B00", "#CA6702", "#AE2012", "#9B2226"
   ),
   flagged = "#d03b3b",   # status red - reserved, never used for a series
   fitted = "#2a78d6",    # fitted-model lines
@@ -104,9 +108,26 @@ gr_scale_categorical <- function(aesthetic, n_levels, name = NULL) {
   }
 }
 
-# Internal: sequential fill for magnitude heatmaps.
-gr_scale_sequential <- function(name = NULL) {
+# Internal: sequential fill for magnitude heatmaps. With `equalize`, the
+# ramp's colours are anchored at the data's own quantiles, so values that
+# cluster in a narrow band still spread across several hues; the colourbar
+# warps to match, staying truthful. Falls back to a linear mapping when the
+# data are (nearly) constant.
+gr_scale_sequential <- function(x = NULL, name = NULL, equalize = TRUE) {
+  pal <- gr_colors$sequential
+  values <- NULL
+  if (equalize && !is.null(x)) {
+    x <- x[is.finite(x)]
+    q <- stats::quantile(x, probs = seq(0, 1, length.out = length(pal)),
+                         na.rm = TRUE, names = FALSE)
+    if (length(unique(q)) > 2 && diff(range(q)) > 0) {
+      pos <- (q - q[1]) / (q[length(q)] - q[1])
+      keep <- !duplicated(pos)
+      pal <- pal[keep]
+      values <- pos[keep]
+    }
+  }
   ggplot2::scale_fill_gradientn(
-    colours = gr_colors$sequential, name = name, na.value = "white"
+    colours = pal, values = values, name = name, na.value = "white"
   )
 }

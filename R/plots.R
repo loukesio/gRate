@@ -15,6 +15,10 @@
 #' @param fill What to colour wells by (see Details). Default `"max_od"`.
 #' @param label If `TRUE`, print the value in each well (rounded for numeric
 #'   fills). Default `FALSE`.
+#' @param equalize For numeric fills: if `TRUE` (default), the heatmap ramp's
+#'   colours are anchored at the data's own quantiles, so wells that cluster
+#'   in a narrow value band still separate visibly (the colourbar warps to
+#'   match, staying truthful). Set `FALSE` for a plain linear mapping.
 #'
 #' @return A ggplot object (modify or print it like any other ggplot).
 #' @export
@@ -23,7 +27,8 @@
 #' plate <- gr_qc(plate)
 #' gr_plot_plate(plate, "max_od")
 #' gr_plot_plate(plate, "flagged")
-gr_plot_plate <- function(plate, fill = "max_od", label = FALSE) {
+gr_plot_plate <- function(plate, fill = "max_od", label = FALSE,
+                          equalize = TRUE) {
   gr_assert_plate(plate)
 
   summary_stats <- c("max_od", "auc", "delta_od", "baseline")
@@ -75,7 +80,8 @@ gr_plot_plate <- function(plate, fill = "max_od", label = FALSE) {
     ggplot2::theme(panel.grid = ggplot2::element_blank())
 
   if (is.numeric(df[[fill]])) {
-    p <- p + gr_scale_sequential(name = fill)
+    p <- p + gr_scale_sequential(df[[fill]], name = fill,
+                                 equalize = equalize)
   } else if (is.logical(df[[fill]])) {
     is_qc_flag <- fill %in% qc_cols && fill != "fit_ok"
     p <- p + ggplot2::scale_fill_manual(

@@ -41,3 +41,19 @@ test_that("gr_plot_curves validates inputs", {
   expect_error(gr_plot_curves(plate, wells = "Z9"), "Invalid well")
   expect_error(gr_plot_curves(plate, colour_by = "nope"), "gr_layout")
 })
+
+test_that("plate heatmap uses the ltc heatmap0 ramp with quantile equalization", {
+  expect_length(gr_colors$sequential, 9)
+  expect_identical(gr_colors$sequential[1], "#001219")
+
+  plate <- gr_qc(synthetic_plate())
+  expect_no_error(ggplot2::ggplot_build(gr_plot_plate(plate, "max_od")))
+  expect_no_error(
+    ggplot2::ggplot_build(gr_plot_plate(plate, "max_od", equalize = FALSE))
+  )
+
+  # A constant fill falls back to the linear mapping without erroring.
+  flat <- plate
+  flat$data$value <- 1
+  expect_no_error(ggplot2::ggplot_build(gr_plot_plate(flat, "max_od")))
+})

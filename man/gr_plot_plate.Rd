@@ -4,7 +4,7 @@
 \alias{gr_plot_plate}
 \title{Plate heatmap of a statistic, QC flag, or metadata variable}
 \usage{
-gr_plot_plate(plate, fill = "max_od", label = FALSE)
+gr_plot_plate(plate, fill = "max_od", label = FALSE, equalize = TRUE)
 }
 \arguments{
 \item{plate}{A \code{gr_plate} object.}
@@ -13,6 +13,11 @@ gr_plot_plate(plate, fill = "max_od", label = FALSE)
 
 \item{label}{If \code{TRUE}, print the value in each well (rounded for numeric
 fills). Default \code{FALSE}.}
+
+\item{equalize}{For numeric fills: if \code{TRUE} (default), the heatmap ramp's
+colours are anchored at the data's own quantiles, so wells that cluster
+in a narrow value band still separate visibly (the colourbar warps to
+match, staying truthful). Set \code{FALSE} for a plain linear mapping.}
 }
 \value{
 A ggplot object (modify or print it like any other ggplot).

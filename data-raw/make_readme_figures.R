@@ -31,16 +31,22 @@ save_fig(
 )
 
 # --- Spatial correction: the plate before and after -------------------------
+# The two panels share one LINEAR fill scale: per-panel quantile equalization
+# would re-amplify the corrected panel's residual noise and hide the
+# flattening that is the whole point of the comparison.
 corrected <- gr_spatial(plate)
-save_fig(
+rng <- range(gr_summarise(plate)$max_od, gr_summarise(corrected)$max_od)
+shared <- scale_fill_gradientn(colours = gr_colors$sequential,
+                               limits = rng, name = "max_od")
+suppressMessages(save_fig(
   "README-spatial.png",
-  (gr_plot_plate(plate, "max_od") +
+  (gr_plot_plate(plate, "max_od", equalize = FALSE) + shared +
      labs(title = "Before correction") +
      theme(legend.position = "none")) +
-    (gr_plot_plate(corrected, "max_od") +
+    (gr_plot_plate(corrected, "max_od", equalize = FALSE) + shared +
        labs(title = "After gr_spatial()")),
   10, 3.6
-)
+))
 
 # --- Comparisons: a two-strain plate with a real difference -----------------
 times <- seq(0, 24, by = 0.5)
