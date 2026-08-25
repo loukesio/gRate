@@ -64,22 +64,37 @@ gr_plot_plate <- function(plate, fill = "max_od", label = FALSE) {
 
   p <- ggplot2::ggplot(df, ggplot2::aes(x = .data$col, y = .data$row,
                                         fill = .data[[fill]])) +
-    ggplot2::geom_tile(colour = "grey30", linewidth = 0.3) +
+    # Tiles are separated by a gap in the surface colour, not a drawn border.
+    ggplot2::geom_tile(colour = gr_colors$surface, linewidth = 0.6) +
     ggplot2::scale_x_discrete(position = "top", drop = FALSE) +
     ggplot2::scale_y_discrete(drop = FALSE) +
     ggplot2::coord_fixed() +
     ggplot2::labs(x = NULL, y = NULL, fill = fill,
                   title = paste("Plate map:", fill)) +
-    ggplot2::theme_minimal() +
+    theme_gr() +
     ggplot2::theme(panel.grid = ggplot2::element_blank())
 
   if (is.numeric(df[[fill]])) {
-    p <- p + ggplot2::scale_fill_viridis_c()
+    p <- p + gr_scale_sequential(name = fill)
   } else if (is.logical(df[[fill]])) {
+    is_qc_flag <- fill %in% qc_cols && fill != "fit_ok"
     p <- p + ggplot2::scale_fill_manual(
-      values = c(`FALSE` = "grey85", `TRUE` = "#D55E00"),
+      values = stats::setNames(
+        if (is_qc_flag) c(gr_colors$neutral, gr_colors$flagged)
+        else c(gr_colors$flagged, gr_colors$neutral),
+        c("FALSE", "TRUE")
+      ),
+      labels = if (is_qc_flag) {
+        c(`FALSE` = "pass", `TRUE` = "flagged")
+      } else {
+        ggplot2::waiver()
+      },
       na.value = "white"
     )
+  } else {
+    scale <- gr_scale_categorical("fill", dplyr::n_distinct(df[[fill]]),
+                                  name = fill)
+    if (!is.null(scale)) p <- p + scale
   }
 
   if (label) {
@@ -150,19 +165,27 @@ gr_plot_curves <- function(plate, colour_by = NULL, wells = NULL, raw = FALSE) {
   p <- ggplot2::ggplot(df, ggplot2::aes(x = .data$time, y = .data$value,
                                         group = .data$well))
 
+  lw <- if (is.null(wells)) 0.4 else 0.8
+
   if (!is.null(colour_by)) {
     if (!colour_by %in% names(df)) {
       stop("Column '", colour_by, "' not found; add it with gr_layout().",
            call. = FALSE)
     }
     p <- p + ggplot2::geom_line(ggplot2::aes(colour = .data[[colour_by]]),
-                                linewidth = 0.4)
+                                linewidth = lw)
+    scale <- gr_scale_categorical("colour",
+                                  dplyr::n_distinct(df[[colour_by]]),
+                                  name = colour_by)
+    if (!is.null(scale)) p <- p + scale
   } else {
     p <- p +
       ggplot2::geom_line(ggplot2::aes(colour = .data$flagged),
-                         linewidth = 0.4) +
+                         linewidth = lw) +
       ggplot2::scale_colour_manual(
-        values = c(`FALSE` = "grey40", `TRUE` = "#D55E00"),
+        values = stats::setNames(
+          c(gr_colors$baseline, gr_colors$flagged), c("FALSE", "TRUE")
+        ),
         labels = c(`FALSE` = "pass", `TRUE` = "flagged"),
         name = "QC"
       )
@@ -179,9 +202,8 @@ gr_plot_curves <- function(plate, colour_by = NULL, wells = NULL, raw = FALSE) {
 
   p +
     ggplot2::labs(x = "time", y = "value") +
-    ggplot2::theme_minimal(base_size = 9) +
+    theme_gr(base_size = 9) +
     ggplot2::theme(
-      panel.grid.minor = ggplot2::element_blank(),
       axis.text = ggplot2::element_text(size = 5)
     )
 }
@@ -219,13 +241,16 @@ gr_plot_fit <- function(plate, wells = NULL) {
   }
   df$row <- factor(df$row, levels = LETTERS[1:8])
 
+  pt_size <- if (is.null(wells)) 0.3 else 0.7
+  lw <- if (is.null(wells)) 0.5 else 0.8
+
   p <- ggplot2::ggplot(df, ggplot2::aes(x = .data$time, group = .data$well)) +
     ggplot2::geom_point(ggplot2::aes(y = .data$value),
-                        size = 0.3, colour = "grey55") +
+                        size = pt_size, colour = gr_colors$muted) +
     ggplot2::geom_line(
       data = df[!is.na(df$fitted), ],
       ggplot2::aes(y = .data$fitted),
-      colour = "#0072B2", linewidth = 0.5
+      colour = gr_colors$fitted, linewidth = lw
     )
 
   if (is.null(wells)) {
@@ -237,15 +262,16 @@ gr_plot_fit <- function(plate, wells = NULL) {
     p <- p + ggplot2::facet_wrap(ggplot2::vars(.data$well))
   }
 
+  base <- if (is.null(wells)) 9 else 11
+
   p +
     ggplot2::labs(
       x = "time", y = "value",
       title = paste0("Fitted growth curves (",
                      plate$meta$fit_method %||% "unknown method", ")")
     ) +
-    ggplot2::theme_minimal(base_size = 9) +
+    theme_gr(base_size = base) +
     ggplot2::theme(
-      panel.grid.minor = ggplot2::element_blank(),
-      axis.text = ggplot2::element_text(size = 5)
+      axis.text = ggplot2::element_text(size = base - 4)
     )
 }

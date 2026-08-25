@@ -26,8 +26,7 @@ save_fig("README-curves.png", gr_plot_curves(plate), 9, 5.5)
 fitted <- gr_fit(plate)
 save_fig(
   "README-fit.png",
-  gr_plot_fit(fitted, wells = c("A1", "B3", "C5", "E6")) +
-    theme_minimal(base_size = 11),
+  gr_plot_fit(fitted, wells = c("A1", "B3", "C5", "E6")),
   8, 5
 )
 
@@ -101,22 +100,23 @@ phase_pts <- data.frame(
 )
 
 p_od <- ggplot(dx_curve, aes(time, value)) +
-  geom_point(size = 0.6, colour = "grey45") +
+  geom_point(size = 0.6, colour = gr_colors$muted) +
   geom_vline(xintercept = dx$trough_t, linetype = "dashed",
-             colour = "grey60") +
+             colour = gr_colors$baseline) +
   labs(title = "A diauxic well", y = "OD600", x = NULL) +
-  theme_minimal(base_size = 11)
+  theme_gr()
 p_rate <- ggplot(slope_df, aes(time, rate)) +
-  geom_line(colour = "grey45") +
-  geom_point(data = phase_pts, colour = "#D55E00", size = 2.5) +
+  geom_line(colour = gr_colors$series[1], linewidth = 0.7) +
+  geom_point(data = phase_pts, colour = gr_colors$series[2], size = 3) +
   geom_text(data = phase_pts, aes(label = label),
-            vjust = -1, hjust = "inward", size = 3.2, colour = "#D55E00") +
+            vjust = -1, hjust = "inward", size = 3.2,
+            colour = gr_colors$ink2) +
   geom_vline(xintercept = dx$trough_t, linetype = "dashed",
-             colour = "grey60") +
+             colour = gr_colors$baseline) +
   expand_limits(y = max(phase_pts$rate) * 1.25) +
   labs(y = "per-capita growth rate", x = "time",
        subtitle = "gr_diauxie() finds the two rate peaks and the trough between them") +
-  theme_minimal(base_size = 11)
+  theme_gr()
 save_fig("README-diauxie.png", p_od / p_rate, 7.5, 5.5)
 
 # --- Lag: one curve, four definitions ---------------------------------------
@@ -131,16 +131,16 @@ lag_df <- data.frame(
 save_fig(
   "README-lag.png",
   ggplot(lag_well, aes(time, value)) +
-    geom_point(size = 0.7, colour = "grey45") +
+    geom_point(size = 0.7, colour = gr_colors$muted) +
     geom_vline(data = lag_df, aes(xintercept = lag, colour = method),
                linewidth = 0.7) +
-    scale_colour_manual(values = c("#0072B2", "#D55E00", "#009E73", "#CC79A7")) +
+    scale_colour_manual(values = unname(gr_colors$series[1:4])) +
     labs(title = "Four lag definitions, one well",
          subtitle = sprintf(
            "gr_lag(): spread across methods = %.1f h - disagreement is a diagnostic",
            l$lag_range),
          y = "OD600", x = "time", colour = NULL) +
-    theme_minimal(base_size = 11) +
+    theme_gr() +
     theme(legend.position = "bottom"),
   7.5, 4.6
 )

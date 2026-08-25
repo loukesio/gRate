@@ -224,13 +224,13 @@ gr_plot_compare <- function(cmp) {
   }
 
   ggplot2::ggplot(cmp$data, ggplot2::aes(x = .data$group, y = .data$value)) +
-    ggplot2::geom_jitter(width = 0.12, height = 0, size = 1.6,
-                         colour = "grey45", alpha = 0.8) +
+    ggplot2::geom_jitter(width = 0.12, height = 0, size = 2,
+                         colour = gr_colors$muted, alpha = 0.9) +
     ggplot2::geom_crossbar(
       data = cmp$groups,
       ggplot2::aes(y = .data$mean, ymin = .data$ci_lo, ymax = .data$ci_hi),
-      width = 0.4, linewidth = 0.4, colour = "#0072B2", fill = "#0072B2",
-      alpha = 0.15
+      width = 0.4, linewidth = 0.5, colour = gr_colors$series[1],
+      fill = gr_colors$series[1], alpha = 0.1
     ) +
     ggplot2::labs(
       x = paste(cmp$by, collapse = " / "),
@@ -242,7 +242,7 @@ gr_plot_compare <- function(cmp) {
         cmp$overall$p_value
       )
     ) +
-    ggplot2::theme_minimal() +
+    theme_gr() +
     ggplot2::theme(
       axis.text.x = ggplot2::element_text(angle = 30, hjust = 1)
     )
