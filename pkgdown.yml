@@ -1,0 +1,9 @@
+pandoc: 3.8.3
+pkgdown: 2.2.1
+pkgdown_sha: ~
+articles:
+  gRate: gRate.html
+last_built: 2026-08-26T21:21Z
+urls:
+  reference: https://loukesio.github.io/gRate/reference
+  article: https://loukesio.github.io/gRate/articles
