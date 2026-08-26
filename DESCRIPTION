@@ -33,6 +33,7 @@ Suggests:
     gcplyr,
     growthcurver,
     knitr,
+    ltc,
     plotly,
     readxl,
     quarto,
@@ -42,5 +43,6 @@ Suggests:
     withr
 Config/testthat/edition: 3
 VignetteBuilder: knitr
-URL: https://github.com/loukesio/gRate
+Remotes: loukesio/ltc_palettes
+URL: https://loukesio.github.io/gRate/, https://github.com/loukesio/gRate
 BugReports: https://github.com/loukesio/gRate/issues

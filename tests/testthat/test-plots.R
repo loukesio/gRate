@@ -58,3 +58,18 @@ test_that("plate heatmap uses the rocket ramp, linear by default", {
   flat$data$value <- 1
   expect_no_error(ggplot2::ggplot_build(gr_plot_plate(flat, "max_od")))
 })
+
+test_that("gr_plot_plate accepts ltc palette names and custom ramps", {
+  plate <- gr_qc(synthetic_plate())
+
+  custom <- gr_plot_plate(plate, "max_od", palette = c("#ffffff", "#000000"))
+  expect_no_error(ggplot2::ggplot_build(custom))
+
+  skip_if_not_installed("ltc")
+  named <- gr_plot_plate(plate, "max_od", palette = "heatmap0")
+  expect_no_error(ggplot2::ggplot_build(named))
+  expect_error(gr_plot_plate(plate, "max_od", palette = "not_a_palette"),
+               "not an ltc palette")
+  expect_error(gr_plot_plate(plate, "max_od", palette = 1),
+               "must be NULL")
+})

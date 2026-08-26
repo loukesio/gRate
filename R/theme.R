@@ -109,14 +109,44 @@ gr_scale_categorical <- function(aesthetic, n_levels, name = NULL) {
   }
 }
 
+# Internal: resolve a heatmap ramp. NULL -> the rocket default; a vector of
+# hex colours is used as-is; a single string is looked up as an ltc palette
+# name (github.com/loukesio/ltc_palettes) when that package is installed.
+gr_resolve_palette <- function(palette) {
+  if (is.null(palette)) {
+    return(gr_colors$sequential)
+  }
+  if (is.character(palette) && length(palette) >= 2) {
+    return(palette)
+  }
+  if (is.character(palette) && length(palette) == 1) {
+    if (!requireNamespace("ltc", quietly = TRUE)) {
+      stop("Palette names need the 'ltc' package ",
+           "(remotes::install_github(\"loukesio/ltc_palettes\")); ",
+           "or pass a vector of colours directly.", call. = FALSE)
+    }
+    # ltc::ltc() deparses its argument (NSE), so a variable would look up
+    # the literal name "palette"; do.call evaluates the string first.
+    cols <- tryCatch(as.character(do.call(ltc::ltc, list(palette))),
+                     error = function(e) NULL)
+    if (is.null(cols) || length(cols) < 2) {
+      stop("'", palette, "' is not an ltc palette name.", call. = FALSE)
+    }
+    return(cols)
+  }
+  stop("`palette` must be NULL, an ltc palette name, or a vector of colours.",
+       call. = FALSE)
+}
+
 # Internal: sequential fill for magnitude heatmaps. Linear by default: the
 # rocket ramp is perceptually uniform, so the honest mapping is also the
 # readable one. `equalize` (opt-in) anchors the colours at the data's own
 # quantiles instead - it makes clustered values separate, but exaggerates
 # small differences, so it is never the default. Falls back to linear when
 # the data are (nearly) constant.
-gr_scale_sequential <- function(x = NULL, name = NULL, equalize = FALSE) {
-  pal <- gr_colors$sequential
+gr_scale_sequential <- function(x = NULL, name = NULL, equalize = FALSE,
+                                palette = NULL) {
+  pal <- gr_resolve_palette(palette)
   values <- NULL
   if (equalize && !is.null(x)) {
     x <- x[is.finite(x)]

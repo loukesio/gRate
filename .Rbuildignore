@@ -6,3 +6,6 @@
 ^LICENSE\.md$
 ^platecheck_handoff\.md$
 ^\.claude$
+^_pkgdown\.yml$
+^docs$
+^pkgdown$

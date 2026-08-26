@@ -1,0 +1,48 @@
+url: https://loukesio.github.io/gRate/
+template:
+  bootstrap: 5
+  bslib:
+    primary: "#2a78d6"
+
+home:
+  title: "gRate: growth rates from microbial growth curves"
+
+reference:
+- title: Read and annotate
+  desc: From raw export to an annotated plate object.
+  contents:
+  - gr_read
+  - gr_layout
+  - new_gr_plate
+  - is_gr_plate
+  - gr_summarise
+- title: Quality control
+  contents:
+  - gr_qc
+- title: Spatial correction
+  contents:
+  - gr_spatial
+- title: Growth parameters
+  desc: Fitting, uncertainty, lag, diauxie, and the results tables.
+  contents:
+  - gr_fit
+  - gr_results
+  - gr_fit_summary
+  - gr_lag
+  - gr_diauxie
+- title: Compare groups
+  contents:
+  - gr_compare
+  - gr_plot_compare
+- title: Plots and theme
+  contents:
+  - gr_plot_plate
+  - gr_plot_curves
+  - gr_plot_fit
+  - gr_colors
+- title: Export and report
+  contents:
+  - gr_export
+  - as_growthcurver
+  - as_gcplyr
+  - gr_report

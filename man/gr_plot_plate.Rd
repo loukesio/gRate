@@ -4,7 +4,13 @@
 \alias{gr_plot_plate}
 \title{Plate heatmap of a statistic, QC flag, or metadata variable}
 \usage{
-gr_plot_plate(plate, fill = "max_od", label = FALSE, equalize = FALSE)
+gr_plot_plate(
+  plate,
+  fill = "max_od",
+  label = FALSE,
+  equalize = FALSE,
+  palette = NULL
+)
 }
 \arguments{
 \item{plate}{A \code{gr_plate} object.}
@@ -20,6 +26,13 @@ value band separate visibly. \strong{Off by default}: equalization also
 exaggerates trivial differences, making a quiet plate look dramatic.
 The default linear mapping on the perceptually uniform ramp shows equal
 differences equally.}
+
+\item{palette}{For numeric fills: \code{NULL} (default) uses the perceptually
+uniform rocket ramp; a vector of colours is used as a custom ramp; a
+single string is looked up as a palette name from the
+\href{https://github.com/loukesio/ltc_palettes}{ltc package} (e.g.
+\code{"heatmap0"}, \code{"maya"}), which must be installed. Note that most named
+palettes are not perceptually uniform — the default is the safe choice.}
 }
 \value{
 A ggplot object (modify or print it like any other ggplot).

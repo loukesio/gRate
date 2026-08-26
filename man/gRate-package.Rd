@@ -11,6 +11,7 @@ An end-to-end toolkit for 96-well plate reader growth curve experiments. Reads r
 \seealso{
 Useful links:
 \itemize{
+  \item \url{https://loukesio.github.io/gRate/}
   \item \url{https://github.com/loukesio/gRate}
   \item Report bugs at \url{https://github.com/loukesio/gRate/issues}
 }

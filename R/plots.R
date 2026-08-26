@@ -21,6 +21,12 @@
 #'   exaggerates trivial differences, making a quiet plate look dramatic.
 #'   The default linear mapping on the perceptually uniform ramp shows equal
 #'   differences equally.
+#' @param palette For numeric fills: `NULL` (default) uses the perceptually
+#'   uniform rocket ramp; a vector of colours is used as a custom ramp; a
+#'   single string is looked up as a palette name from the
+#'   [ltc package](https://github.com/loukesio/ltc_palettes) (e.g.
+#'   `"heatmap0"`, `"maya"`), which must be installed. Note that most named
+#'   palettes are not perceptually uniform — the default is the safe choice.
 #'
 #' @return A ggplot object (modify or print it like any other ggplot).
 #' @export
@@ -30,7 +36,7 @@
 #' gr_plot_plate(plate, "max_od")
 #' gr_plot_plate(plate, "flagged")
 gr_plot_plate <- function(plate, fill = "max_od", label = FALSE,
-                          equalize = FALSE) {
+                          equalize = FALSE, palette = NULL) {
   gr_assert_plate(plate)
 
   summary_stats <- c("max_od", "auc", "delta_od", "baseline")
@@ -83,7 +89,7 @@ gr_plot_plate <- function(plate, fill = "max_od", label = FALSE,
 
   if (is.numeric(df[[fill]])) {
     p <- p + gr_scale_sequential(df[[fill]], name = fill,
-                                 equalize = equalize)
+                                 equalize = equalize, palette = palette)
   } else if (is.logical(df[[fill]])) {
     is_qc_flag <- fill %in% qc_cols && fill != "fit_ok"
     p <- p + ggplot2::scale_fill_manual(

@@ -40,3 +40,6 @@ vignettes/*.pdf
 
 # Claude Code session files
 .claude/
+
+# pkgdown site (built by CI)
+docs/
