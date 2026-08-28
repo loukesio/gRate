@@ -47,6 +47,8 @@ other gRate function operates on. Two generic layouts are supported:</p>
 <span>  format <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"auto"</span>, <span class="st">"wide"</span>, <span class="st">"long"</span>, <span class="st">"tecan"</span>, <span class="st">"biotek"</span><span class="op">)</span>,</span>
 <span>  time_col <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  plate_id <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  read <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  time_unit <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"auto"</span>, <span class="st">"hours"</span>, <span class="st">"days"</span>, <span class="st">"minutes"</span>, <span class="st">"seconds"</span><span class="op">)</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -75,6 +77,18 @@ named like time (<code>time</code>, <code>hours</code>, <code>hour</code>, <code
 file name (without extension) when <code>x</code> is a path.</p></dd>
 
 
+<dt id="arg-read">read<a class="anchor" aria-label="anchor" href="#arg-read"></a></dt>
+<dd><p>For instrument formats with several kinetic reads: substring
+selecting the read to import (e.g. <code>read = "GFP"</code> or <code>read = "630"</code>).
+Default: the first read, with a message naming the others.</p></dd>
+
+
+<dt id="arg-time-unit">time_unit<a class="anchor" aria-label="anchor" href="#arg-time-unit"></a></dt>
+<dd><p>For instrument formats: <code>"auto"</code> (default — Gen5 Excel
+day-fractions and the unit in Tecan's <code>Time [...]</code> header are handled),
+or one of <code>"hours"</code>, <code>"days"</code>, <code>"minutes"</code>, <code>"seconds"</code> to override.</p></dd>
+
+
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
 <dd><p>Additional arguments passed to <code><a href="https://rdrr.io/r/utils/read.table.html" class="external-link">utils::read.csv()</a></code> or
 <code><a href="https://readxl.tidyverse.org/reference/read_excel.html" class="external-link">readxl::read_excel()</a></code> when <code>x</code> is a path.</p></dd>
@@ -94,11 +108,20 @@ exports to CSV.</p></li>
 and measurement. Column names are matched case-insensitively (well:
 <code>well</code>; time: <code>time</code>, <code>hours</code>, <code>hour</code>, <code>t</code>; value: <code>value</code>, <code>od</code>, <code>od600</code>,
 <code>absorbance</code>, <code>measurement</code>, <code>abs</code>).</p></li>
-</ul><p>With <code>format = "auto"</code> (the default) the layout is detected from the column
-names. Instrument-specific parsers for Tecan and BioTek exports are planned;
-<code>format = "tecan"</code> and <code>format = "biotek"</code> currently stop with an
-informative error because those parsers are only written against real
-example exports, not guessed formats.</p>
+</ul><p>Two instrument-native formats are parsed directly, each written against a
+real example export:</p><ul><li><p><strong>biotek</strong> — BioTek Gen5 kinetic exports (Excel or CSV): the metadata
+header is skipped, kinetic blocks are located by their
+<code>Time | T(degree) | A1 ...</code> header rows, Excel day-fraction times become hours,
+and the mean temperature is kept in <code>$meta</code>.</p></li>
+<li><p><strong>tecan</strong> — Tecan i-control kinetic exports (Excel or CSV/TSV): the
+transposed layout (<code>Cycle Nr.</code> / <code>Time [s]</code> / <code>Temp.</code> rows, then one row
+per well) is pivoted, with the time unit taken from the <code>Time [...]</code>
+header.</p></li>
+</ul><p>Files with several kinetic reads (e.g. OD600 plus a fluorescence channel)
+use the first read by default and name the others; pick one with <code>read</code>.
+With <code>format = "auto"</code> (the default), instrument files are recognised by
+their signature rows, and everything else falls back to wide/long column
+detection.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
@@ -121,6 +144,18 @@ example exports, not guessed formats.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> &lt;gr_plate&gt; 96 wells x 49 timepoints</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   time: 0 to 24 (interval 0.5)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   instrument: generic, plate: growth_wide</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   QC: not run (use gr_qc())</span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># instrument exports (Gen5 / i-control shaped examples are bundled)</span></span></span>
+<span class="r-in"><span><span class="fu">gr_read</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata"</span>, <span class="st">"biotek_gen5.csv"</span>, package <span class="op">=</span> <span class="st">"gRate"</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;gr_plate&gt; 96 wells x 49 timepoints</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   time: 0 to 24 (interval 0.5)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   instrument: BioTek Gen5, plate: biotek_gen5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   QC: not run (use gr_qc())</span>
+<span class="r-in"><span><span class="fu">gr_read</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata"</span>, <span class="st">"tecan_icontrol.csv"</span>, package <span class="op">=</span> <span class="st">"gRate"</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;gr_plate&gt; 96 wells x 49 timepoints</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   time: 0 to 24 (interval 0.5)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   instrument: Tecan i-control, plate: tecan_icontrol</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   QC: not run (use gr_qc())</span>
 </code></pre></div>
     </div>

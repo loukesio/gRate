@@ -50,6 +50,28 @@ plate
 #>   QC: not run (use gr_qc())
 ```
 
+Native instrument exports are parsed directly — no reshaping in Excel
+first.
+[`gr_read()`](https://loukesio.github.io/gRate/reference/gr_read.md)
+recognises BioTek Gen5 kinetic exports (metadata header, per-read
+blocks, day-fraction times) and Tecan i-control kinetic exports
+(transposed layout, `Time [s]` rows), both validated against real files.
+Multi-read files name their reads; pick one with `read =`:
+
+``` r
+
+gr_read(system.file("extdata", "biotek_gen5.csv", package = "gRate"))
+#> <gr_plate> 96 wells x 49 timepoints
+#>   time: 0 to 24 (interval 0.5)
+#>   instrument: BioTek Gen5, plate: biotek_gen5
+#>   QC: not run (use gr_qc())
+gr_read(system.file("extdata", "tecan_icontrol.csv", package = "gRate"))
+#> <gr_plate> 96 wells x 49 timepoints
+#>   time: 0 to 24 (interval 0.5)
+#>   instrument: Tecan i-control, plate: tecan_icontrol
+#>   QC: not run (use gr_qc())
+```
+
 Everything lives in a single `gr_plate` object: `$data` (tidy tibble),
 `$qc` (per-well flags, once QC has run), and `$meta`.
 

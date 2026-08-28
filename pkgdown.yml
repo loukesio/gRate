@@ -3,7 +3,7 @@ pkgdown: 2.2.1
 pkgdown_sha: ~
 articles:
   gRate: gRate.html
-last_built: 2026-08-26T21:21Z
+last_built: 2026-08-28T16:42Z
 urls:
   reference: https://loukesio.github.io/gRate/reference
   article: https://loukesio.github.io/gRate/articles

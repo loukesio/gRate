@@ -78,7 +78,7 @@
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://loukesio.github.io/gRate/">gRate</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="reference/gr_read.html">gr_read</a></span><span class="op">(</span><span class="st">"run1.csv"</span><span class="op">)</span> <span class="op">|&gt;</span>                 <span class="co"># wide or long export -&gt; gr_plate</span></span>
+<span><span class="fu"><a href="reference/gr_read.html">gr_read</a></span><span class="op">(</span><span class="st">"run1.csv"</span><span class="op">)</span> <span class="op">|&gt;</span>                 <span class="co"># generic, Gen5, or i-control export</span></span>
 <span>  <span class="fu"><a href="reference/gr_layout.html">gr_layout</a></span><span class="op">(</span><span class="st">"layout.csv"</span><span class="op">)</span> <span class="op">|&gt;</span>           <span class="co"># strain/medium + bio/tech replicates</span></span>
 <span>  <span class="fu"><a href="reference/gr_qc.html">gr_qc</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span>                           <span class="co"># flag bad wells (never delete)</span></span>
 <span>  <span class="fu"><a href="reference/gr_spatial.html">gr_spatial</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span>                      <span class="co"># correct edge effects (experimental)</span></span>
@@ -263,7 +263,7 @@
 </h2>
 <ul>
 <li>Generic wide/long CSV/TSV/Excel parsers, QC flags, ggplot2 plate/curve plots, replicate handling, median-polish spatial correction, logistic and easylinear growth fitting with replicate summaries, exporters, and the Quarto report: <strong>done</strong>, with <code>R CMD check</code> clean and a synthetic-plate test suite that recovers every injected artifact and the true growth parameters.</li>
-<li>Tecan and BioTek native parsers: <strong>planned</strong> — they will be written against real example exports, not guessed formats. If you can share an export file, please <a href="https://github.com/loukesio/gRate/issues" class="external-link">open an issue</a>.</li>
+<li>Tecan i-control and BioTek Gen5 native parsers: <strong>done</strong> — written and validated against real instrument exports. <code><a href="reference/gr_read.html">gr_read()</a></code> auto-detects them, handles multi-read files (<code>read = "GFP"</code>), converts day-fraction and <code>Time [s]</code> timestamps to hours, and keeps the temperature in <code>$meta</code>. Found an export variant that doesn’t parse? <a href="https://github.com/loukesio/gRate/issues" class="external-link">Open an issue</a> with the file.</li>
 <li>384-well support: out of scope for now (the design leaves room for it).</li>
 </ul>
 <p>See <code><a href="articles/gRate.html">vignette("gRate")</a></code> for the full walkthrough on the bundled example data.</p>
