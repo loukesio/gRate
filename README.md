@@ -43,7 +43,7 @@ Six verbs on one object:
 ```r
 library(gRate)
 
-gr_read("run1.csv") |>                 # wide or long export -> gr_plate
+gr_read("run1.csv") |>                 # generic, Gen5, or i-control export
   gr_layout("layout.csv") |>           # strain/medium + bio/tech replicates
   gr_qc() |>                           # flag bad wells (never delete)
   gr_spatial() |>                      # correct edge effects (experimental)
@@ -259,9 +259,12 @@ estimation is covered by `gr_fit(method = "easylinear")` (rolling OLS, no
   Quarto report: **done**, with `R CMD check` clean and a synthetic-plate
   test suite that recovers every injected artifact and the true growth
   parameters.
-- Tecan and BioTek native parsers: **planned** — they will be written against
-  real example exports, not guessed formats. If you can share an export file,
-  please [open an issue](https://github.com/loukesio/gRate/issues).
+- Tecan i-control and BioTek Gen5 native parsers: **done** — written and
+  validated against real instrument exports. `gr_read()` auto-detects them,
+  handles multi-read files (`read = "GFP"`), converts day-fraction and
+  `Time [s]` timestamps to hours, and keeps the temperature in `$meta`.
+  Found an export variant that doesn't parse?
+  [Open an issue](https://github.com/loukesio/gRate/issues) with the file.
 - 384-well support: out of scope for now (the design leaves room for it).
 
 See `vignette("gRate")` for the full walkthrough on the bundled example data.

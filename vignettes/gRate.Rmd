@@ -56,6 +56,17 @@ plate <- gr_read(raw)
 plate
 ```
 
+Native instrument exports are parsed directly — no reshaping in Excel first.
+`gr_read()` recognises BioTek Gen5 kinetic exports (metadata header, per-read
+blocks, day-fraction times) and Tecan i-control kinetic exports (transposed
+layout, `Time [s]` rows), both validated against real files. Multi-read files
+name their reads; pick one with `read =`:
+
+```{r read-instruments}
+gr_read(system.file("extdata", "biotek_gen5.csv", package = "gRate"))
+gr_read(system.file("extdata", "tecan_icontrol.csv", package = "gRate"))
+```
+
 Everything lives in a single `gr_plate` object: `$data` (tidy tibble),
 `$qc` (per-well flags, once QC has run), and `$meta`.
 

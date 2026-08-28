@@ -60,9 +60,14 @@ test_that("HH:MM:SS times are converted to hours", {
   expect_equal(sort(unique(plate$data$time)), c(0, 0.5, 1.25))
 })
 
-test_that("instrument parsers stop with a clear message", {
-  expect_error(gr_read("whatever.csv", format = "tecan"), "not implemented")
-  expect_error(gr_read("whatever.csv", format = "biotek"), "not implemented")
+test_that("instrument formats demand a matching file", {
+  # A generic wide CSV has none of the instrument signatures.
+  df <- data.frame(time = c(0, 1), A1 = c(0.05, 0.5))
+  path <- withr::local_tempfile(fileext = ".csv")
+  write.csv(df, path, row.names = FALSE)
+  expect_error(gr_read(path, format = "tecan"), "No kinetic data block")
+  expect_error(gr_read(path, format = "biotek"), "No kinetic data block")
+  expect_error(gr_read("missing.csv", format = "tecan"), "File not found")
 })
 
 test_that("invalid input is rejected", {

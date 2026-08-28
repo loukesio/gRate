@@ -9,6 +9,8 @@ gr_read(
   format = c("auto", "wide", "long", "tecan", "biotek"),
   time_col = NULL,
   plate_id = NULL,
+  read = NULL,
+  time_unit = c("auto", "hours", "days", "minutes", "seconds"),
   ...
 )
 }
@@ -24,6 +26,14 @@ named like time (\code{time}, \code{hours}, \code{hour}, \code{t}), or the first
 
 \item{plate_id}{Optional plate identifier stored in \verb{$meta}. Defaults to the
 file name (without extension) when \code{x} is a path.}
+
+\item{read}{For instrument formats with several kinetic reads: substring
+selecting the read to import (e.g. \code{read = "GFP"} or \code{read = "630"}).
+Default: the first read, with a message naming the others.}
+
+\item{time_unit}{For instrument formats: \code{"auto"} (default — Gen5 Excel
+day-fractions and the unit in Tecan's \code{Time [...]} header are handled),
+or one of \code{"hours"}, \code{"days"}, \code{"minutes"}, \code{"seconds"} to override.}
 
 \item{...}{Additional arguments passed to \code{\link[utils:read.table]{utils::read.csv()}} or
 \code{\link[readxl:read_excel]{readxl::read_excel()}} when \code{x} is a path.}
@@ -46,11 +56,24 @@ and measurement. Column names are matched case-insensitively (well:
 \code{absorbance}, \code{measurement}, \code{abs}).
 }
 
-With \code{format = "auto"} (the default) the layout is detected from the column
-names. Instrument-specific parsers for Tecan and BioTek exports are planned;
-\code{format = "tecan"} and \code{format = "biotek"} currently stop with an
-informative error because those parsers are only written against real
-example exports, not guessed formats.
+Two instrument-native formats are parsed directly, each written against a
+real example export:
+\itemize{
+\item \strong{biotek} — BioTek Gen5 kinetic exports (Excel or CSV): the metadata
+header is skipped, kinetic blocks are located by their
+\verb{Time | T(degree) | A1 ...} header rows, Excel day-fraction times become hours,
+and the mean temperature is kept in \verb{$meta}.
+\item \strong{tecan} — Tecan i-control kinetic exports (Excel or CSV/TSV): the
+transposed layout (\verb{Cycle Nr.} / \code{Time [s]} / \code{Temp.} rows, then one row
+per well) is pivoted, with the time unit taken from the \code{Time [...]}
+header.
+}
+
+Files with several kinetic reads (e.g. OD600 plus a fluorescence channel)
+use the first read by default and name the others; pick one with \code{read}.
+With \code{format = "auto"} (the default), instrument files are recognised by
+their signature rows, and everything else falls back to wide/long column
+detection.
 }
 \examples{
 # long format
@@ -60,6 +83,10 @@ gr_read(path)
 # wide format
 path <- system.file("extdata", "growth_wide.csv", package = "gRate")
 gr_read(path, format = "wide")
+
+# instrument exports (Gen5 / i-control shaped examples are bundled)
+gr_read(system.file("extdata", "biotek_gen5.csv", package = "gRate"))
+gr_read(system.file("extdata", "tecan_icontrol.csv", package = "gRate"))
 }
 \seealso{
 \code{\link[=gr_layout]{gr_layout()}} to attach well metadata, \code{\link[=gr_qc]{gr_qc()}} to flag wells.
